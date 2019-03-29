@@ -28,8 +28,34 @@
 (require 'ert)
 (require 'ros)
 
-(ert-deftest ros-check-sum ()
-  (should (equal (+ 1 1) 2)))
+(ert-deftest ros-test-default-workspace-is-used-when-no-workspace-is-set ()
+  (let ((ros-current-workspace nil)
+        (ros-default-workspace "~/catkin_ws"))
+    (should (string= (ros-current-workspace) ros-default-workspace))))
+
+(ert-deftest ros-test-current-workspace-is-used-if-set ()
+  (let ((ros-default-workspace "~/catkin_ws")
+        (ros-current-workspace "~/catkin_ws2"))
+    (should (string= (ros-current-workspace) ros-current-workspace)))
+  )
+
+(ert-deftest ros-test-new-workspace-can-be-selected ()
+  (let ((ros-current-workspace "~/catkin_ws"))
+    (ros-select-workspace "~/catkin_ws2")
+    (should (string= (ros-current-workspace) "~/catkin_ws2")))
+  )
+
+
+(ert-deftest ros-test-shell-output-as-list ()
+  (should (cl-every 'string=
+                    (ros-shell-output-as-list "for VAR in 1 2 3 4 5; do; echo $VAR;done;")
+                    '("1" "2" "3" "4" "5"))))
+
+(ert-deftest ros-test-package-list ()
+  (should (member "roscpp" (ros-packages))))
+
+
+
 
 (provide 'ros-test)
 

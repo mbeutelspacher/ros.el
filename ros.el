@@ -26,7 +26,38 @@
 
 ;;; Code:
 
+(defcustom ros-default-workspace (format "/opt/ros/%s" (getenv "ROS_DISTRO")) "Path to default catkin workspace."
+  :group 'ros-workspace
+  :type 'directory)
 
+(defvar ros-current-workspace nil "Path to current catkin workspace.")
+
+(defun ros-current-workspace ()
+  "Return path to current catkin workspace or to default workspace if not set."
+  (if ros-current-workspace ros-current-workspace ros-default-workspace))
+
+(defcustom ros-workspaces '(ros-default-workspace) "List of paths to catkin workspaces."
+  :group 'ros-workspace
+  :type 'sexp)
+
+(defun ros-completing-read-workspace()
+  "Read a workspace from the minibuffer."
+  (completing-read "Workspace: " ros-workspaces nil t nil nil (ros-current-workspace)))
+
+(defun ros-select-workspace (path)
+  "Set `ros-current-workspace' to PATH."
+  (interactive (list (ros-completing-read-workspace)))
+  (setq ros-current-workspace path))
+
+
+(defun ros-shell-output-as-list (cmd)
+  "Run CMD and return a list of each line of the output."
+  (split-string (shell-command-to-string cmd)
+                "\n"))
+
+(defun ros-packages ()
+  "List all available ros packages in the current workspace."
+  (ros-shell-output-as-list "rospack list-names"))
 
 (provide 'ros)
 
