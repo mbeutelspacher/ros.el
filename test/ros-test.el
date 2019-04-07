@@ -54,6 +54,14 @@
 (ert-deftest ros-test-package-list ()
   (should (member "roscpp" (ros-packages))))
 
+(ert-deftest ros-sourcing-command-for-zsh()
+  (skip-unless (string= (getenv "SHELL") "/usr/bin/zsh"))
+  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.zsh")))
+
+(ert-deftest ros-sourcing-command-for-zsh()
+  (skip-unless (string= (getenv "SHELL") "/bin/bash"))
+  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.bash")))
+
 
 
 

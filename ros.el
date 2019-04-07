@@ -26,21 +26,41 @@
 
 ;;; Code:
 
-(defcustom ros-default-workspace (format "/opt/ros/%s" (getenv "ROS_DISTRO")) "Path to default catkin workspace."
+(defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution")
+
+(defcustom ros-default-workspace (format "/opt/ros/%s"
+                                         ros-distro)
+  "Path to binary/devel directory of default catkin workspace."
   :group 'ros-workspace
   :type 'directory)
 
-(defvar ros-current-workspace nil "Path to current catkin workspace.")
+(defvar ros-current-workspace nil "Path to binary/devel directory of current catkin workspace.")
 
 (defun ros-current-workspace ()
-  "Return path to current catkin workspace or to default workspace if not set."
-  (if ros-current-workspace ros-current-workspace ros-default-workspace))
+  "Return path to binary/devel directory of current catkin workspace or to default workspace if not set."
+  (if ros-current-workspace ros-current-workspace
+    ros-default-workspace))
 
-(defcustom ros-workspaces '(ros-default-workspace) "List of paths to catkin workspaces."
+(defcustom ros-workspaces '(ros-default-workspace)
+  "List of paths to binary/devel directories of catkin workspaces."
   :group 'ros-workspace
   :type 'sexp)
 
-(defun ros-completing-read-workspace()
+(defvar ros-setup-file-extension (let ((shell (getenv "SHELL")))
+                                      (cond
+                                       ((s-suffix-p "zsh" shell) ".zsh")
+                                       ((s-suffix-p "bash" shell) ".bash")
+                                       (t ".sh"))))
+(defun ros-setup-file-path (path)
+  "Returns the path to the right setup file in PATH"
+  (let ((path (concat (file-name-as-directory path) "setup" ros-setup-file-extension))))
+  )
+
+(defun ros-source-workspace-command (path)
+  "Returns the right sourcing command for this workspace at PATH"
+  (format "source %s" path))
+
+(defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
   (completing-read "Workspace: " ros-workspaces nil t nil nil (ros-current-workspace)))
 
@@ -50,9 +70,13 @@
   (setq ros-current-workspace path))
 
 
+(defun ros-shell-command-to-string (cmd)
+  "Source the current workspace and run CMD and return the output as string."
+  (shell-command-to-string (format "%s && %s" (ros-source-workspace-command (ros-current-workspace)) cmd)))
+
 (defun ros-shell-output-as-list (cmd)
   "Run CMD and return a list of each line of the output."
-  (split-string (shell-command-to-string cmd)
+  (split-string (ros-shell-command-to-string cmd)
                 "\n"))
 
 (defun ros-packages ()
