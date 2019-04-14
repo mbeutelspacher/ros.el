@@ -62,6 +62,14 @@
   (skip-unless (string= (getenv "SHELL") "/bin/bash"))
   (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.bash")))
 
+(ert-deftest ros-test-generic-list-msg  ()
+  (should (member "std_msgs/String" (ros-generic-list "msg")))
+  )
+
+(ert-deftest ros-generic-get-msg-returns-msg ()
+  (should (string= (s-trim (ros-generic-get-info "msg" "std_msgs/String")) "string data")))
+
+
 
 
 
