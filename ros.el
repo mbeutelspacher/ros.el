@@ -147,18 +147,28 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (interactive (list (ros-generic-completing-read "node")))
   (ros-generic-show-info "node" node))
 
-(defun ros-show-thing-at-point()
+(defun ros-show-thing-at-point ()
   "Get thing at point and try to describe it."
   (interactive)
   (let ((thing (thing-at-point 'symbol))
         (section (ros-info-get-section))
         (type nil))
-
-    (cond ((member section '("Publishers" "Subscribers"))(setq type "node"))
-          ((member section '("Subscriptions" "Publications")) (setq type "topic"))
-          ((member section '("Services")) (setq type "service"))
-          (t (message "Section not recognized")))
-      (when type (ros-generic-show-info type thing))))
+    (cond
+     ((member section '("Publishers" "Subscribers" "Node"))
+      (setq type "node"))
+     ((member section '("Subscriptions" "Publications"))
+      (setq type "topic"))
+     ((member section '("Services"))
+      (setq type "service"))
+     ((member section '("Type"))
+      (cond
+       ((member thing (ros-generic-list "msg"))
+        (setq type "msg"))
+       ((member thing (ros-generic-list "srv"))
+        (setq type "srv"))))
+     (t (message "Section not recognized")))
+    (when type
+      (ros-generic-show-info type thing))))
 
 
 (defun ros-topic-echo (topic)
@@ -166,11 +176,12 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (interactive (list (ros-generic-completing-read "topic")))
   (let* ((topic-full-name (if (string-match "^/" topic) topic (concat "/" topic)))
          (buffer-name (concat "*rostopic:" topic-full-name "*")))
+
     ))
 
 (defun ros-info-get-section ()
   (save-excursion
-    (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:"))
+    (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:\\|Type:"))
                  (end (if start (re-search-forward ":"))))
       (when (and start end) (buffer-substring-no-properties start (- end 1))))))
 
