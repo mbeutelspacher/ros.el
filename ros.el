@@ -120,7 +120,9 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   "major mode for displaying ros info messages"
   )
 
-(define-key ros-info-mode-map (kbd "s") 'ros-show-thing-at-point)
+(define-key ros-info-mode-map (kbd "S") 'ros-show-thing-at-point)
+(define-key ros-info-mode-map (kbd "E") 'ros-echo-topic-at-point)
+(define-key ros-info-mode-map (kbd "K") 'ros-kill-node-at-point)
 
 (defun ros-msg-show (msg)
   "Prompt for MSG and show structure."
@@ -170,14 +172,43 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (when type
       (ros-generic-show-info type thing))))
 
+(defun ros-echo-topic-at-point ()
+  "Get thing at point and if it is a topic echo it."
+  (interactive)
+  (let ((thing (thing-at-point 'symbol)))
+    (if (member thing (ros-generic-list "topic"))
+        (ros-topic-echo thing)
+        (message (format "%s is not an active topic" thing)))))
+
+
+(defun ros-kill-node-at-point ()
+  "Get thing at point and if it is a node kill it."
+  (interactive)
+  (let ((thing (thing-at-point 'symbol)))
+    (if (member thing (ros-generic-list "node"))
+        (ros-node-kill thing)
+      (message (format "%s is not an active node" thing)))))
+
+(defun ros-node-kill (node)
+  "Kill NODE if active node."
+  (if (member node (ros-generic-list "node"))
+      (when (yes-or-no-p (format "Do you really want to kill node %s"
+                                 node))
+                         (progn
+                           (ros-shell-command-to-string (format "rosnode kill %s" node))
+                           (if (member node (ros-generic-list "node"))
+                               (message (format "Failed to kill node %s" node))
+                             (message (format "Killed node %s successfully" node)))))
+    (message (format "There is no node %s to kill" node))))
 
 (defun ros-topic-echo (topic)
   "Prompt for TOPIC and echo it."
   (interactive (list (ros-generic-completing-read "topic")))
   (let* ((topic-full-name (if (string-match "^/" topic) topic (concat "/" topic)))
-         (buffer-name (concat "*rostopic:" topic-full-name "*")))
-
-    ))
+         (buffer-name (concat "*rostopic:" topic-full-name "*"))
+         (process (start-process buffer-name buffer-name "rostopic" "echo" topic-full-name)))
+    (view-buffer-other-window (process-buffer process))
+    (ros-info-mode)))
 
 (defun ros-info-get-section ()
   (save-excursion
