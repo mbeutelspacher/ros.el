@@ -26,7 +26,7 @@
 
 ;;; Code:
 
-(defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution")
+(defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution.")
 
 (defcustom ros-default-workspace (format "/opt/ros/%s"
                                          ros-distro)
@@ -51,13 +51,9 @@
                                        ((s-suffix-p "zsh" shell) ".zsh")
                                        ((s-suffix-p "bash" shell) ".bash")
                                        (t ".sh"))))
-(defun ros-setup-file-path (path)
-  "Returns the path to the right setup file in PATH"
-  (let ((path (concat (file-name-as-directory path) "setup" ros-setup-file-extension))))
-  )
 
 (defun ros-source-workspace-command (path)
-  "Returns the right sourcing command for this workspace at PATH"
+  "Return the right sourcing command for this workspace at PATH."
   (format "source %s" path))
 
 (defun ros-completing-read-workspace ()
@@ -91,11 +87,13 @@
 
 (defun ros-generic-list (type)
   "Return result from rosTYPE list.
+
   TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (ros-shell-output-as-list (format "ros%s list" type)))
 
 (defun ros-generic-completing-read (type)
   "Prompts for ros TYPE.
+
   TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (completing-read (format "%s: " type) (ros-generic-list type) nil t))
 
@@ -211,34 +209,55 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (ros-info-mode)))
 
 (defun ros-info-get-section ()
+  "Get the section of thing at point."
   (save-excursion
     (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:\\|Type:"))
                  (end (if start (re-search-forward ":"))))
       (when (and start end) (buffer-substring-no-properties start (- end 1))))))
 
-(defun ros-service-call (service)
-  "Prompt for an active SERVICE and call it."
-  (interactive (list (ros-generic-completing-read "service")))
-  (let* ((buffer-name (concat "*rosservice: " service "*"))
-         (args (ros-service-read-args service))
-         (process (apply 'start-process buffer-name buffer-name "rosservice" "call" service args)))
-    (ros-run-process (format "rosservice call %s %s"  service  (string-join args " ")) buffer-name )))
-
-(defun ros-service-read-args (service)
-  "Read in values for the args of SERVICE and return them as a list."
-  (let* ((arg-names (ros-service-parse-args service))
-         (args (mapcar (lambda (s)
-                         (read-string (concat s ": ")))
-                       arg-names)))
-     (when args args)
+(defun ros-generate-prototype (type name topic)
+  (let ((prototype-text (ros-shell-command-to-string (format "rosmsg-proto %s %s" type name)))
+        (buffer-name topic))
+    (when (get-buffer buffer-name)
+      (kill-buffer buffer-name))
+    (pop-to-buffer buffer-name)
+    (erase-buffer)
+    (insert prototype-text)
+    (ros-msg-pub-mode)
     ))
+  
+(define-derived-mode ros-msg-pub-mode text-mode "ros-msg-pub-mode"
+  "major mode for publishing ros msg"
+  )
 
-(defun ros-service-parse-args (service)
-  "Find out the names of the args of SERVICE and return them as a list."
-  (let ((lines (ros-shell-output-as-list (format "rosservice info %s" service))))
-    (dolist (line lines)
-      (when (s-prefix? "Args:" line) (return (cdr (split-string line " "t)))))
-    ))
+(define-key ros-msg-pub-mode-map (kbd "C-c C-c") 'ros-msg-pub-buffer)
+
+(defun ros-msg-pub-buffer (arg)
+  (interactive (list current-prefix-arg))
+  (let* ((topic (buffer-name))
+         (type (ros-get-msg-type topic))
+         (message-text (buffer-string))
+         (buffer-name (concat "*rostopic pub " topic "*"))
+         (old-buffer (current-buffer))
+         (rate-argument (if arg (format "-r %d" (prefix-numeric-value arg)) "--once"))
+         (process (start-process buffer-name buffer-name "rostopic" "pub" topic type (concat "" message-text) rate-argument)))
+    
+    (switch-to-buffer (process-buffer process))
+    (kill-buffer old-buffer)
+    )
+  )
+
+
+(defun ros-get-msg-type (topic)
+  (let* ((info (ros-shell-command-to-string (format "rostopic info %s" topic)))
+         (test (string-match "Type: \\(.*\\)\n" info)))
+    (match-string 1 info)))
+
+(defun ros-msg-pub (topic)
+  (interactive (list (ros-generic-completing-read "topic")))
+  (ros-generate-prototype "msg" (ros-get-msg-type (s-trim-right topic)) topic))
+
+
 
 (provide 'ros)
 
