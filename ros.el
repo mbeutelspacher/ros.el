@@ -216,6 +216,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
       (when (and start end) (buffer-substring-no-properties start (- end 1))))))
 
 (defun ros-generate-prototype (type name topic)
+  "Generate prototypes for ros messages or service (decided by TYPE) of name NAME to be published on TOPIC."
   (let ((prototype-text (ros-shell-command-to-string (format "rosmsg-proto %s %s" type name)))
         (buffer-name topic))
     (when (get-buffer buffer-name)
@@ -223,19 +224,24 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (pop-to-buffer buffer-name)
     (erase-buffer)
     (insert prototype-text)
-    (ros-msg-pub-mode)
+    (if (string= type "srv") (ros-service-call-mode) (ros-topic-pub-mode))
     ))
   
-(define-derived-mode ros-msg-pub-mode text-mode "ros-msg-pub-mode"
+(define-derived-mode ros-topic-pub-mode text-mode "ros-topic-pub-mode"
   "major mode for publishing ros msg"
   )
+(define-key ros-topic-pub-mode-map (kbd "C-c C-c") 'ros-topic-pub-buffer)
 
-(define-key ros-msg-pub-mode-map (kbd "C-c C-c") 'ros-msg-pub-buffer)
+(define-derived-mode ros-service-call-mode text-mode "ros-service-call-mode"
+  "major mode for calling ros services")
+(define-key ros-service-call-mode-map (kbd "C-c C-c") 'ros-service-call-buffer)
 
-(defun ros-msg-pub-buffer (arg)
+
+(defun ros-topic-pub-buffer (arg)
+  "Publish the mesage defined in the buffer, if ARG is nil publish the message one, otherwise ARG is the rate of the publishing."
   (interactive (list current-prefix-arg))
   (let* ((topic (buffer-name))
-         (type (ros-get-msg-type topic))
+         (type (ros-get-topic-type topic))
          (message-text (buffer-string))
          (buffer-name (concat "*rostopic pub " topic "*"))
          (old-buffer (current-buffer))
@@ -243,19 +249,44 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (process (start-process buffer-name buffer-name "rostopic" "pub" topic type (concat "" message-text) rate-argument)))
     
     (switch-to-buffer (process-buffer process))
-    (kill-buffer old-buffer)
-    )
-  )
+    (kill-buffer old-buffer)))
 
+(defun ros-get-topic-type (topic)
+  "Get message type of TOPIC."
+  (ros-get-topic-service-type "topic" topic))
 
-(defun ros-get-msg-type (topic)
-  (let* ((info (ros-shell-command-to-string (format "rostopic info %s" topic)))
+(defun ros-get-service-type (topic)
+  "Get service type of TOPIC."
+  (ros-get-topic-service-type "service" topic))
+
+(defun ros-get-topic-service-type (type topic)
+  "Get message or service (decided by TYPE) type of TOPIC."
+  (let* ((info (ros-generic-get-info type topic))
          (test (string-match "Type: \\(.*\\)\n" info)))
     (match-string 1 info)))
 
-(defun ros-msg-pub (topic)
+(defun ros-topic-pub (topic)
+  "Draft ros message to be published on TOPIC."
   (interactive (list (ros-generic-completing-read "topic")))
-  (ros-generate-prototype "msg" (ros-get-msg-type (s-trim-right topic)) topic))
+  (ros-generate-prototype "msg" (ros-get-topic-type (s-trim-right topic)) topic))
+
+(defun ros-service-call (topic)
+  "Draft a service call to be called on TOPIC."
+  (interactive (list (ros-generic-completing-read "service")))
+  (ros-generate-prototype "srv" (ros-get-service-type topic) topic))
+
+(defun ros-service-call-buffer ()
+  "Call the service specified in the buffer."
+  (interactive)
+  (let* ((service (buffer-name))
+         (type (ros-get-service-type service))
+         (message-lines (split-string(buffer-string) "\n"))
+         (buffer-name (concat "*rosservice call " service "*"))
+         (old-buffer (current-buffer))
+         (process (start-process buffer-name buffer-name "rosservice" "call" service (string-join message-lines "\n"))))
+    
+    (switch-to-buffer (process-buffer process))
+    (kill-buffer old-buffer)))
 
 
 
