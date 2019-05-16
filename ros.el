@@ -38,23 +38,27 @@
 
 (defun ros-current-workspace ()
   "Return path to binary/devel directory of current catkin workspace or to default workspace if not set."
-  (if ros-current-workspace ros-current-workspace
-    ros-default-workspace))
+  (if ros-current-workspace ros-current-workspace ros-default-workspace))
 
-(defcustom ros-workspaces '(ros-default-workspace)
+(defcustom ros-workspaces (list ros-default-workspace)
   "List of paths to binary/devel directories of catkin workspaces."
   :group 'ros-workspace
   :type 'sexp)
+
 
 (defvar ros-setup-file-extension (let ((shell (getenv "SHELL")))
                                       (cond
                                        ((s-suffix-p "zsh" shell) ".zsh")
                                        ((s-suffix-p "bash" shell) ".bash")
                                        (t ".sh"))))
+(defun ros-setup-file-path (path)
+  "Return the path to the right setup file in PATH."
+  (concat (file-name-as-directory path) "setup" ros-setup-file-extension)
+  )
 
-(defun ros-source-workspace-command (path)
+(defun ros-source-workspace-command (workspace)
   "Return the right sourcing command for this workspace at PATH."
-  (format "source %s" path))
+  (format "source %s" (ros-setup-file-path workspace)))
 
 (defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
@@ -66,24 +70,33 @@
   (setq ros-current-workspace path))
 
 
-(defun ros-shell-command-to-string (cmd)
+(defun ros-shell-command-to-string (cmd &optional workspace)
   "Source the current workspace and run CMD and return the output as string."
-  (shell-command-to-string (format "%s && %s" (ros-source-workspace-command (ros-current-workspace)) cmd)))
+  (let ((wspace (if workspace workspace (ros-current-workspace))))
+    (shell-command-to-string (format "%s && %s" (ros-source-workspace-command wspace) cmd))))
 
-(defun ros-shell-output-as-list (cmd)
+(defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD and return a list of each line of the output."
-  (split-string (ros-shell-command-to-string cmd)
-                "\n"))
+  (let ((wspace (if workspace workspace (ros-current-workspace))))
+    (split-string (ros-shell-command-to-string cmd workspace)
+                  "\n")))
 
-(defun ros-run-process(cmd buffer-name)
+(defun ros-run-process(cmd buffer-name workspace)
   "Source workspace, run CMD, print output in BUFFER-NAME."
-  (let ((process (start-process buffer-name buffer-name (format "%s && %s" (ros-source-workspace-command (ros-current-workspace)) cmd))))
+  (let* ((wspace (if workspace workspace (ros-current-workspace)))
+         (process (start-process buffer-name buffer-name (format "%s && %s" (ros-source-workspace-command wspace) cmd))))
     (pop-to-buffer buffer-name)
     (ros-info-mode)))
 
 (defun ros-packages ()
   "List all available ros packages in the current workspace."
   (ros-shell-output-as-list "rospack list-names"))
+
+(defun ros-catkin-command (cmd workspace)
+  "Run catkin CMD after sourcing WORKSPACE."
+  (let* ((default-directory workspace)
+         (compilation-buffer-name-function (lambda (major-mode-name) "*catkin build*")))
+    (compile (format "%s && catkin %s" (ros-source-workspace-command workspace) cmd))))
 
 (defun ros-generic-list (type)
   "Return result from rosTYPE list.
