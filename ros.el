@@ -290,6 +290,81 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 
 
 
+(defun ros-insert-import-msg (name)
+  "Ask for message and include it in file."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-insert-import "msg" name)
+  )
+
+
+(defun ros-insert-import-srv (name)
+  "Ask for service and include it in file."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-insert-import "srv" name)
+  )
+
+(defun ros-insert-import (type name)
+  (let ((package (car (split-string name "/")))
+        (item-name (car (cdr(split-string name "/")))))
+    (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
+          ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
+          (t (message "Only works in Python and C++ mode")))
+  )
+)
+(defun ros-insert-import-python (type package name)
+  (let ((start-import-statement (format "from %s.%s import" package type)))
+      (progn
+        (when (not (ros-import-is-included-python-p type package name))
+            (if (ros-import-search-same-package-import-python type package)
+                (progn
+                  (goto-char (ros-import-search-same-package-import-python type package))
+                  (move-end-of-line nil)
+                  (insert (format ", %s" name)))
+              (progn
+                (goto-char (ros-insert-import-python-best-import-location type))
+                (end-of-line)
+                (newline-and-indent)
+                (insert (format "%s %s" start-import-statement name))))))))
+
+(defun ros-insert-import-python-best-import-location (type)
+    (or (ros-string-in-buffer (format "from .*\.%s import .*" type)) (ros-string-in-buffer "import") (point-min))
+)
+
+(defun ros-string-in-buffer (string)
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward string nil t)
+    )
+  )
+(defun ros-import-is-included-python-p (type package name)
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "from %s.%s import .*%s[, \n]" package type name) nil t)))
+
+(defun ros-import-search-same-package-import-python (type package)
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "from %s.%s import" package type) nil t)))
+
+
+(defun ros-insert-import-cpp (type package name)
+  (when (not (ros-import-is-included-cpp-p package name))
+    (progn
+      (goto-char  (ros-insert-import-cpp-best-import-location type package))
+      (end-of-line)
+      (newline-and-indent)
+      (insert (format "#include <%s/%s.h>" package name)))))
+
+(defun ros-import-is-included-cpp-p (package name)
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "#include <%s\/%s.h>" package name) nil t)))
+
+(defun ros-insert-import-cpp-best-import-location (type package)
+  (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min))
+  )
+
 (provide 'ros)
 
 ;;; ros.el ends here
+
