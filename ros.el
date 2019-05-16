@@ -28,8 +28,7 @@
 
 (defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution.")
 
-(defcustom ros-default-workspace (format "/opt/ros/%s"
-                                         ros-distro)
+(defcustom ros-default-workspace nil
   "Path to binary/devel directory of default catkin workspace."
   :group 'ros-workspace
   :type 'directory)
@@ -40,35 +39,50 @@
   "Return path to binary/devel directory of current catkin workspace or to default workspace if not set."
   (if ros-current-workspace ros-current-workspace ros-default-workspace))
 
+(defvar ros-current-profile "default" "Profile in current workspace.")
+
 (defcustom ros-workspaces (list ros-default-workspace)
   "List of paths to binary/devel directories of catkin workspaces."
   :group 'ros-workspace
   :type 'sexp)
-
 
 (defvar ros-setup-file-extension (let ((shell (getenv "SHELL")))
                                       (cond
                                        ((s-suffix-p "zsh" shell) ".zsh")
                                        ((s-suffix-p "bash" shell) ".bash")
                                        (t ".sh"))))
-(defun ros-setup-file-path (path)
-  "Return the path to the right setup file in PATH."
-  (concat (file-name-as-directory path) "setup" ros-setup-file-extension)
-  )
 
-(defun ros-source-workspace-command (workspace)
+(defun ros-source-workspace-command (workspace &optional profile)
   "Return the right sourcing command for this workspace at PATH."
-  (format "source %s" (ros-setup-file-path workspace)))
+  (if workspace
+      (concat "source "(ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)
+    (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
+    ))
 
 (defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
   (completing-read "Workspace: " ros-workspaces nil t nil nil (ros-current-workspace)))
 
-(defun ros-select-workspace (path)
-  "Set `ros-current-workspace' to PATH."
-  (interactive (list (ros-completing-read-workspace)))
-  (setq ros-current-workspace path))
 
+(defun ros-select-workspace (workspace &optional profile)
+  "Set `ros-current-workspace' to WORKSPACE."
+  (interactive (list (ros-completing-read-workspace)))
+  (setq ros-current-workspace workspace)
+  (if profile 
+      (setq ros-current-profile profile)
+      (setq ros-current-profile (ros-completing-read-catkin-profiles workspace))
+    ))
+
+(defun ros-catkin-locate-command (workspace flag &optional profile) 
+  (let ((profile-str (if profile (format "--profile %s" profile) "")))
+    (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))))
+
+(defun ros-list-catkin-profiles (workspace)
+  (ros-shell-output-as-list (format "cd %s && catkin profile list -u" workspace)))
+
+(defun ros-completing-read-catkin-profiles (workspace)
+  (let ((profiles (ros-list-catkin-profiles workspace)))
+    (completing-read (format "Profile: " ) profiles nil t nil nil (if (member ros-current-profile profiles) ros-current-profile "default"))))
 
 (defun ros-shell-command-to-string (cmd &optional workspace)
   "Source the current workspace and run CMD and return the output as string."
@@ -92,11 +106,69 @@
   "List all available ros packages in the current workspace."
   (ros-shell-output-as-list "rospack list-names"))
 
-(defun ros-catkin-command (cmd workspace)
+(defun ros-completing-read-packages ()
+  (completing-read "Package: " (ros-packages) nil t ))
+
+(defun ros-current-package ()
+  "returns the name of the current ros package"
+  (interactive)
+  (let* ((package-path (locate-dominating-file (ros-current-directory) "package.xml")))
+    (file-name-nondirectory(directory-file-name(file-name-directory package-path)))))
+
+(defun ros-current-directory ()
+  (if (buffer-file-name) (file-name-directory (buffer-file-name)) (dired-current-directory)))
+
+(defun ros-catkin-compile-command (cmd workspace &optional profile additional_cmd)
   "Run catkin CMD after sourcing WORKSPACE."
   (let* ((default-directory workspace)
-         (compilation-buffer-name-function (lambda (major-mode-name) "*catkin build*")))
-    (compile (format "%s && catkin %s" (ros-source-workspace-command workspace) cmd))))
+         (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
+         (profile-flag (if profile (format "--profile %s" profile) ""))
+         (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "")))
+    (compile (format "%s && catkin %s %s %s" (ros-source-workspace-command workspace profile) cmd profile-flag add-cmd))))
+
+(defun ros-catkin-build-workspace(workspace &optional profile)
+  (interactive (list (ros-completing-read-workspace)))
+  (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
+    (ros-catkin-compile-command "build" workspace prof)))
+
+(defun ros-catkin-build-current-workspace()
+  (interactive)
+  (ros-catkin-build-workspace (ros-current-workspace) ros-current-profile))
+
+(defun ros-catkin-build-package(package)
+  (interactive (list (ros-completing-read-packages)))
+  (ros-catkin-compile-command (format "build %s" package) (ros-current-workspace) ros-current-profile))
+
+(defun ros-catkin-build-current-package ()
+  (interactive)
+  (ros-catkin-build-package (ros-current-package)))
+
+(defun ros-clean-workspace (workspace &optional profile)
+  (interactive (list (ros-completing-read-workspace)))
+  (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
+    (when (y-or-n-p (format "Do you really want to clean %s with profile %s" workspace prof))
+        (ros-catkin-compile-command "clean -y" workspace profile))))
+(defun ros-clean-current-workspace()
+  (interactive)
+  (ros-clean-workspace (ros-current-workspace) ros-current-profile))
+  
+(defun ros-catkin-test-package(package)
+  (interactive (list (ros-completing-read-packages)))
+  (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package) )
+  )
+
+(defun ros-catkin-test-current-package()
+  (interactive)
+  (ros-catkin-test-package (ros-current-package)))
+
+(defun ros-catkin-test-workspace(workspace &optional profile)
+  (interactive (list (ros-completing-read-workspace)))
+  (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
+    ((ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof))))
+
+(defun ros-test-current-workspace()
+  (interactive)
+  (ros-catkin-test-workspace (ros-current-workspace) ros-current-profile))
 
 (defun ros-generic-list (type)
   "Return result from rosTYPE list.
@@ -377,7 +449,27 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min))
   )
 
+(defun ros-dired-package (package)
+  (interactive (list (ros-completing-read-packages)))
+  (dired (s-trim(ros-shell-command-to-string (concat "rospack find " package)))))
+
+(defun ros-loggers (node)
+  (ros-shell-output-as-list (concat "rosconsole list " node)))
+
+(defun ros-completing-read-logger(node)
+    (completing-read "Logger: " (ros-loggers node) nil t))
+
+(defun ros-logger-set-level ()
+  (interactive)
+  (let* ((node (ros-generic-completing-read "node"))
+         (logger (ros-completing-read-logger node))
+         (current-value (s-trim (ros-shell-command-to-string (concat "rosconsole get " node " " logger))))
+         (new-value (completing-read "Level: " '("debug" "info" "warn" "error" "fatal") nil t nil nil current-value)))
+    (ros-shell-command-to-string (concat "rosconsole set " node " " logger " " new-value))))
+
+
+
+
 (provide 'ros)
 
 ;;; ros.el ends here
-
