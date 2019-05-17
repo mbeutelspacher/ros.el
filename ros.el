@@ -228,6 +228,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 
 (define-key ros-info-mode-map (kbd "S") 'ros-show-thing-at-point)
 (define-key ros-info-mode-map (kbd "E") 'ros-echo-topic-at-point)
+(define-key ros-info-mode-map (kbd "C") 'ros-call-service-at-point)
 (define-key ros-info-mode-map (kbd "K") 'ros-kill-node-at-point)
 
 (defun ros-msg-show (msg)
@@ -285,6 +286,14 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (if (member thing (ros-generic-list "topic"))
         (ros-topic-echo thing)
         (message (format "%s is not an active topic" thing)))))
+
+(defun ros-call-service-at-point ()
+  "Get thing at point and if it is a service call it."
+  (interactive)
+  (let ((thing (thing-at-point 'symbol)))
+    (if (member thing (ros-generic-list "service"))
+        (ros-service-call thing)
+      (message (format "%s is not an active service" thing)))))
 
 
 (defun ros-kill-node-at-point ()
@@ -537,6 +546,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 (defun ros-env-set-ros-master (new-master)
   (interactive  (list (ros-env-completing-read-ros-master)))
   (setq ros-env-ros-master (cdr(assoc (s-trim(car(split-string new-master "("))) ros-env-saved-ros-masters)))
+  (message (concat "ROS Master is set to " ros-env-ros-master))
   )
 
 (defun ros-env-get-ip-address (dev)
