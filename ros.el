@@ -522,19 +522,21 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
 
 
-(defvar ros-env-ros-master "localhost")
+(defvar ros-env-ros-master nil)
+(defvar ros-env-saved-ros-masters '(("default" . nil)))
 (defvar ros-env-network-interface nil)
-
 
 (defun ros-env-ros-master-uri ()
   (when ros-env-ros-master
     (s-trim(format "http://%s:11311/" ros-env-ros-master))))
+
 (defun ros-env-completing-read-ros-master ()
-  (completing-read "ROS-Master (IP/Name only): " nil))
+  (completing-read "ROS—Master: " (mapcar 'car ros-env-saved-ros-masters) nil t nil nil (when ros-env-ros-master (car (rassoc ros-env-ros-master ros-env-saved-ros-masters)))))
+
 
 (defun ros-env-set-ros-master (new-master)
   (interactive  (list (ros-env-completing-read-ros-master)))
-  (setq ros-env-ros-master  new-master)
+  (setq ros-env-ros-master (cdr(assoc (s-trim(car(split-string new-master "("))) ros-env-saved-ros-masters)))
   )
 
 (defun ros-env-get-ip-address (dev)
@@ -564,3 +566,4 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 (provide 'ros)
 
 ;;; ros.el ends here
+
