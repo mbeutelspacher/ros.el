@@ -102,21 +102,17 @@
 
 (defun ros-shell-command-to-string (cmd &optional workspace)
   "Source the current workspace and run CMD and return the output as string."
-  (let ((wspace (if workspace workspace (ros-current-workspace))))
-    (s-trim (shell-command-to-string (format "%s && %s" (ros-source-workspace-command wspace) cmd)))))
+  (let ((wspace (if workspace workspace (ros-current-workspace)))
+        (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
+        (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
+        )
+    (s-trim (shell-command-to-string (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-source-workspace-command wspace) cmd)))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD and return a list of each line of the output."
   (let ((wspace (if workspace workspace (ros-current-workspace))))
     (split-string (ros-shell-command-to-string cmd workspace)
                   "\n")))
-
-(defun ros-run-process(cmd buffer-name workspace)
-  "Source workspace, run CMD, print output in BUFFER-NAME."
-  (let* ((wspace (if workspace workspace (ros-current-workspace)))
-         (process (start-process buffer-name buffer-name (format "%s && %s" (ros-source-workspace-command wspace) cmd))))
-    (pop-to-buffer buffer-name)
-    (ros-info-mode)))
 
 (defun ros-packages ()
   "List all available ros packages in the current workspace."
@@ -216,6 +212,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
                          (t "info")))
     (ros-shell-command-to-string (format "ros%s %s %s" type command name))))
 
+
 (defun ros-generic-show-info (type name)
   "Show info about NAME of type TYPE in new buffer."
   (let ((buffer-name (format "* ros-%s: %s" type name)))
@@ -310,12 +307,19 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
                              (message (format "Killed node %s successfully" node)))))
     (message (format "There is no node %s to kill" node))))
 
+
 (defun ros-topic-echo (topic)
   "Prompt for TOPIC and echo it."
   (interactive (list (ros-generic-completing-read "topic")))
   (let* ((topic-full-name (if (string-match "^/" topic) topic (concat "/" topic)))
-         (buffer-name (concat "*rostopic:" topic-full-name "*"))
-         (process (start-process buffer-name buffer-name "rostopic" "echo" topic-full-name)))
+         (buffer-name (concat "*rostopic:" topic-full-name "*")))
+    (ros-process-start-process buffer-name "rostopic" (list "echo" topic-full-name))))
+
+(defun ros-process-start-process (buffer-name cmd args)
+  (let* ((master-uri (ros-env-ros-master-uri))
+         (ros-ip (ros-env-ros-ip))
+         (process-environment (cons (when master-uri (concat "ROS_MASTER_URI=" master-uri))(cons (when ros-ip (concat "ROS_IP=" ros-ip)) process-environment)))
+         (process (apply 'start-process buffer-name buffer-name cmd (mapcar #'identity args))))
     (view-buffer-other-window (process-buffer process))
     (ros-process-mode)))
 
@@ -368,14 +372,10 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (interactive (list current-prefix-arg))
   (let* ((topic (buffer-name))
          (type (ros-get-topic-type topic))
-         (message-text (string-trim (s-trim (buffer-string))"\"" "\""))
          (buffer-name (concat "*rostopic pub " topic "*"))
          (old-buffer (current-buffer))
-         (rate-argument (if arg (format "-r %d" (prefix-numeric-value arg)) "--once"))
-         (process (start-process buffer-name buffer-name "rostopic" "pub" topic type message-text rate-argument)))
-    
-    (switch-to-buffer (process-buffer process))
-    (ros-process-mode)
+         (rate-argument (if arg (format "-r %d" (prefix-numeric-value arg)) "--once")))
+    (ros-process-start-process buffer-name "rostopic" (list "pub" topic type message-text rate-argument))
     (kill-buffer old-buffer)))
 
 (defun ros-get-topic-type (topic)
@@ -409,11 +409,8 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (type (ros-get-service-type service))
          (arguments (string-trim (s-trim (buffer-string)) "\"" "\""))
          (buffer-name (concat "*rosservice call " service "*"))
-         (old-buffer (current-buffer))
-         (process (start-process buffer-name buffer-name "rosservice" "call" service arguments)))
-    
-    (switch-to-buffer (process-buffer process))
-    (ros-process-mode)
+         (old-buffer (current-buffer)))
+    (ros-process-start-process buffer-name "rosservice" (list "call" service arguments))
     (kill-buffer old-buffer)))
 
 (defun ros-insert-import-msg (name)
@@ -506,7 +503,6 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (new-value (completing-read "Level: " '("debug" "info" "warn" "error" "fatal") nil t nil nil current-value)))
     (ros-shell-command-to-string (concat "rosconsole set " node " " logger " " new-value))))
 
-
 (defun ros-param-list()
   (ros-shell-output-as-list "rosparam list"))
 
@@ -519,13 +515,51 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (new-value (ros-param-read-value parameter current-value)))
     (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
 
-
-
 (defun ros-param-read-value (parameter old-value)
   (let ((collection)
         (bool-collection '("true" "false")))
     (when (member old-value bool-collection) (setq collection bool-collection))
     (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
+
+
+(defvar ros-env-ros-master "localhost")
+(defvar ros-env-network-interface nil)
+
+
+(defun ros-env-ros-master-uri ()
+  (when ros-env-ros-master
+    (s-trim(format "http://%s:11311/" ros-env-ros-master))))
+(defun ros-env-completing-read-ros-master ()
+  (completing-read "ROS-Master (IP/Name only): " nil))
+
+(defun ros-env-set-ros-master (new-master)
+  (interactive  (list (ros-env-completing-read-ros-master)))
+  (setq ros-env-ros-master  new-master)
+  )
+
+(defun ros-env-get-ip-address (dev)
+  "get the IP-address for device DEV"
+  (format-network-address (car (network-interface-info dev)) t))
+
+(defun ros-env-ros-ip ()
+  (when ros-env-network-interface
+    (car (split-string (ros-env-get-ip-address ros-env-network-interface) ":"))))
+
+(defun ros-env-network-interfaces ()
+  ""
+  (mapcar (lambda (name-ip-pair) (ros-env-network-interface-description-string (car name-ip-pair) (car(split-string(format-network-address(cdr name-ip-pair) ":"))))) (network-interface-list)))
+
+(defun ros-env-network-interface-description-string (name ip)
+  ""
+  (format "%s (%s)" name ip))
+
+(defun ros-env-completing-read-network-interface()
+  (completing-read "Network interface:" (ros-env-network-interfaces) nil t nil nil (when ros-env-network-interface (ros-env-network-interface-description-string ros-env-network-interface (ros-env-ros-ip)))))
+
+(defun ros-env-select-network-interface (interface)
+  (interactive (list (ros-env-completing-read-network-interface)))
+  (setq ros-env-network-interface (s-trim(car (split-string interface "(")))))
+
 
 (provide 'ros)
 
