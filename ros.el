@@ -188,7 +188,7 @@
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     ((ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof))))
 
-(defun ros-test-current-workspace()
+(defun ros-catkin-test-current-workspace()
   (interactive)
   (ros-catkin-test-workspace (ros-current-workspace) ros-current-profile))
 
