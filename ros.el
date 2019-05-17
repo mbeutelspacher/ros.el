@@ -60,19 +60,15 @@
       (unless (file-exists-p source-file)
         (let* ((extended-devel-space (ros-catkin-get-extended-devel-space workspace profile))
               (extended-source-file (concat extended-devel-space "/setup" ros-setup-file-extension)))
+          (message extended-source-file)
           (if (and (file-exists-p extended-source-file) (y-or-n-p (format "%s does not exist, do you want to source %s instead?" source-file extended-source-file)))
               (setq source-file extended-source-file)
-              (error "%s could not be sourced" source-file)
-              )
-          )
-        )
-      (concat "source " source-file)
-      )
-    ))
+              (error "%s could not be sourced" source-file))))
+      (concat "source " source-file))))
 
 (defun ros-catkin-get-extended-devel-space (workspace &optional profile)
-  (let ((profile-flag (if profile (concat "-- profile " profile) "")))
-    (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
+  (let ((profile-flag (if profile (concat "--profile " profile) "")))
+    (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
 
 (defun ros-completing-read-workspace ()
@@ -163,14 +159,24 @@
   (interactive)
   (ros-catkin-build-package (ros-current-package)))
 
-(defun ros-clean-workspace (workspace &optional profile)
+(defun ros-catkin-clean-workspace (workspace &optional profile)
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     (when (y-or-n-p (format "Do you really want to clean %s with profile %s" workspace prof))
         (ros-catkin-compile-command "clean -y" workspace profile))))
-(defun ros-clean-current-workspace()
+(defun ros-catkin-clean-current-workspace()
   (interactive)
-  (ros-clean-workspace (ros-current-workspace) ros-current-profile))
+  (ros-catkin-clean-workspace (ros-current-workspace) ros-current-profile))
+
+(defun ros-catkin-clean-package (package)
+  (interactive (list (ros-completing-read-packages)))
+    (when (y-or-n-p (format "Do you really want to clean %s" package))
+      (ros-catkin-compile-command "clean -y" package)))
+
+(defun ros-catkin-clean-current-package()
+  (interactive)
+  (ros-catkin-clean-package (ros-current-package)))
+ 
   
 (defun ros-catkin-test-package(package)
   (interactive (list (ros-completing-read-packages)))
@@ -512,6 +518,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (let* ((current-value (string-trim (ros-shell-command-to-string (concat "rosparam get " parameter)) "'" "'"))
          (new-value (ros-param-read-value parameter current-value)))
     (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
+
 
 
 (defun ros-param-read-value (parameter old-value)
