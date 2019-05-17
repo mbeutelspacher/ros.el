@@ -291,7 +291,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (buffer-name (concat "*rostopic:" topic-full-name "*"))
          (process (start-process buffer-name buffer-name "rostopic" "echo" topic-full-name)))
     (view-buffer-other-window (process-buffer process))
-    (ros-info-mode)))
+    (ros-process-mode)))
 
 (defun ros-info-get-section ()
   "Get the section of thing at point."
@@ -316,11 +316,26 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   "major mode for publishing ros msg"
   )
 (define-key ros-topic-pub-mode-map (kbd "C-c C-c") 'ros-topic-pub-buffer)
+(define-key ros-topic-pub-mode-map (kbd "C-c C-k") 'kill-this-buffer)
 
 (define-derived-mode ros-service-call-mode text-mode "ros-service-call-mode"
   "major mode for calling ros services")
 (define-key ros-service-call-mode-map (kbd "C-c C-c") 'ros-service-call-buffer)
+(define-key ros-service-call-mode-map (kbd "C-c C-k") 'kill-this-buffer)
 
+(define-derived-mode ros-process-mode fundamental-mode "ros-process-mode"
+  "major mode when executing ros processes"
+  (let ((process (get-buffer-process (current-buffer))))
+    (when process (set-process-filter process 'ros-process-filter))))
+
+(defun ros-process-filter (process string)
+  (let ((buffer (process-buffer process))
+        (mark (process-mark process)))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (goto-char mark)
+        (insert string)
+        (set-marker mark (point))))))
 
 (defun ros-topic-pub-buffer (arg)
   "Publish the mesage defined in the buffer, if ARG is nil publish the message one, otherwise ARG is the rate of the publishing."
@@ -334,6 +349,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (process (start-process buffer-name buffer-name "rostopic" "pub" topic type message-text rate-argument)))
     
     (switch-to-buffer (process-buffer process))
+    (ros-process-mode)
     (kill-buffer old-buffer)))
 
 (defun ros-get-topic-type (topic)
@@ -371,6 +387,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (process (start-process buffer-name buffer-name "rosservice" "call" service arguments)))
     
     (switch-to-buffer (process-buffer process))
+    (ros-process-mode)
     (kill-buffer old-buffer)))
 
 (defun ros-insert-import-msg (name)
