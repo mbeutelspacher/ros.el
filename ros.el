@@ -56,20 +56,24 @@
   "Return the right sourcing command for this workspace at PATH."
   (if (not workspace)
       (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
-    (let ((source-file (concat ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension))
-      (when (not (file-exists-p source-file))
-        (let ((parent-workspace)))
+    (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)))
+      (unless (file-exists-p source-file)
+        (let* ((extended-devel-space (ros-catkin-get-extended-devel-space workspace profile))
+              (extended-source-file (concat extended-devel-space "/setup" ros-setup-file-extension)))
+          (if (and (file-exists-p extended-source-file) (y-or-n-p (format "%s does not exist, do you want to source %s instead?" source-file extended-source-file)))
+              (setq source-file extended-source-file)
+              (error "%s could not be sourced" source-file)
+              )
+          )
         )
-      (concat "source "(ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)
+      (concat "source " source-file)
       )
     ))
 
-(defun ros-catkin-get-extended-workspace (workspace &optional profile)
+(defun ros-catkin-get-extended-devel-space (workspace &optional profile)
   (let ((profile-flag (if profile (concat "-- profile " profile) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
-
-(ros-catkin-get-extended-workspace "~/git/catkin_ws")
 
 (defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
