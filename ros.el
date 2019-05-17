@@ -73,6 +73,10 @@
       (setq ros-current-profile (ros-completing-read-catkin-profiles workspace))
     ))
 
+(defun ros-select-profile()
+  (interactive)
+  (ros-select-workspace (ros-current-workspace)))
+
 (defun ros-catkin-locate-command (workspace flag &optional profile) 
   (let ((profile-str (if profile (format "--profile %s" profile) "")))
     (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))))
@@ -87,7 +91,7 @@
 (defun ros-shell-command-to-string (cmd &optional workspace)
   "Source the current workspace and run CMD and return the output as string."
   (let ((wspace (if workspace workspace (ros-current-workspace))))
-    (shell-command-to-string (format "%s && %s" (ros-source-workspace-command wspace) cmd))))
+    (s-trim (shell-command-to-string (format "%s && %s" (ros-source-workspace-command wspace) cmd)))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD and return a list of each line of the output."
@@ -481,7 +485,24 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (ros-shell-command-to-string (concat "rosconsole set " node " " logger " " new-value))))
 
 
+(defun ros-param-list()
+  (ros-shell-output-as-list "rosparam list"))
 
+(defun ros-param-completing-read()
+  (completing-read "Parameter: " (ros-param-list) nil t))
+
+(defun ros-param-set(parameter)
+  (interactive (list (ros-param-completing-read)))
+  (let* ((current-value (string-trim (ros-shell-command-to-string (concat "rosparam get " parameter)) "'" "'"))
+         (new-value (ros-param-read-value parameter current-value)))
+    (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
+
+
+(defun ros-param-read-value (parameter old-value)
+  (let ((collection)
+        (bool-collection '("true" "false")))
+    (when (member old-value bool-collection) (setq collection bool-collection))
+    (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
 
 (provide 'ros)
 
