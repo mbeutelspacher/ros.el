@@ -54,10 +54,22 @@
 
 (defun ros-source-workspace-command (workspace &optional profile)
   "Return the right sourcing command for this workspace at PATH."
-  (if workspace
+  (if (not workspace)
+      (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
+    (let ((source-file (concat ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension))
+      (when (not (file-exists-p source-file))
+        (let ((parent-workspace)))
+        )
       (concat "source "(ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)
-    (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
+      )
     ))
+
+(defun ros-catkin-get-extended-workspace (workspace &optional profile)
+  (let ((profile-flag (if profile (concat "-- profile " profile) "")))
+    (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
+  )
+
+(ros-catkin-get-extended-workspace "~/git/catkin_ws")
 
 (defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
