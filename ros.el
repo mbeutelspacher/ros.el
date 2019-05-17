@@ -327,11 +327,11 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (interactive (list current-prefix-arg))
   (let* ((topic (buffer-name))
          (type (ros-get-topic-type topic))
-         (message-text (buffer-string))
+         (message-text (string-trim (s-trim (buffer-string))"\"" "\""))
          (buffer-name (concat "*rostopic pub " topic "*"))
          (old-buffer (current-buffer))
          (rate-argument (if arg (format "-r %d" (prefix-numeric-value arg)) "--once"))
-         (process (start-process buffer-name buffer-name "rostopic" "pub" topic type (concat "" message-text) rate-argument)))
+         (process (start-process buffer-name buffer-name "rostopic" "pub" topic type message-text rate-argument)))
     
     (switch-to-buffer (process-buffer process))
     (kill-buffer old-buffer)))
@@ -365,28 +365,24 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (interactive)
   (let* ((service (buffer-name))
          (type (ros-get-service-type service))
-         (message-lines (split-string(buffer-string) "\n"))
+         (arguments (string-trim (s-trim (buffer-string)) "\"" "\""))
          (buffer-name (concat "*rosservice call " service "*"))
          (old-buffer (current-buffer))
-         (process (start-process buffer-name buffer-name "rosservice" "call" service (string-join message-lines "\n"))))
+         (process (start-process buffer-name buffer-name "rosservice" "call" service arguments)))
     
     (switch-to-buffer (process-buffer process))
     (kill-buffer old-buffer)))
 
-
-
 (defun ros-insert-import-msg (name)
   "Ask for message and include it in file."
   (interactive (list (ros-generic-completing-read "msg")))
-  (ros-insert-import "msg" name)
-  )
+  (ros-insert-import "msg" name))
 
 
 (defun ros-insert-import-srv (name)
   "Ask for service and include it in file."
   (interactive (list (ros-generic-completing-read "srv")))
-  (ros-insert-import "srv" name)
-  )
+  (ros-insert-import "srv" name))
 
 (defun ros-insert-import (type name)
   (let ((package (car (split-string name "/")))
