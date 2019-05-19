@@ -28,12 +28,21 @@
 (when (require 'undercover nil t)
   (undercover "ros.el"))
 
+(defun wait-for-roscore (&optional iteration-limit)
+  "Wait until roscore is available or ITERATION-LIMIT reached."
+  (let ((iteration 0))
+    (while (and (not (ros-process-roscore-running-p))
+                (or (not iteration-limit)
+                    (< iteration iteration-limit)))
+      (progn
+        (setq iteration (1+ iteration))
+        (sleep-for 0.1)))))
 
 (defmacro with-roscore (&rest forms)
   "Run FORMS with running roscore."
   `(let ((process (when (not (ros-process-roscore-running-p))(start-process-shell-command "roscore" "roscore"
                                                                                           "roscore"))))
-     (when process (sleep-for 1))
+     (when process (wait-for-roscore 50))
      ,@forms
      ))
 
