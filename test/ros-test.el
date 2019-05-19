@@ -39,13 +39,6 @@
     (should (string= (ros-current-workspace) ros-current-workspace)))
   )
 
-(ert-deftest ros-test-new-workspace-can-be-selected ()
-  (let ((ros-current-workspace "~/catkin_ws"))
-    (ros-select-workspace "~/catkin_ws2")
-    (should (string= (ros-current-workspace) "~/catkin_ws2")))
-  )
-
-
 (ert-deftest ros-test-shell-output-as-list ()
   (should (cl-every 'string=
                     (ros-shell-output-as-list "for VAR in 1 2 3 4 5; do; echo $VAR;done;")
@@ -65,9 +58,20 @@
 (ert-deftest ros-test-generic-list-msg  ()
   (should (member "std_msgs/String" (ros-generic-list "msg")))
   )
-
 (ert-deftest ros-generic-get-msg-returns-msg ()
   (should (string= (s-trim (ros-generic-get-info "msg" "std_msgs/String")) "string data")))
+
+(ert-deftest ros-test-generic-list-topic ()
+  (with-roscore
+   (should (member "/rosout" (ros-generic-list "topic")))))
+
+(ert-deftest ros-test-generic-list-node ()
+  (with-roscore
+   (should (member "/rosout" (ros-generic-list "node")))))
+
+(ert-deftest ros-test-generic-list-services ()
+  (with-roscore
+   (should (member "/rosout/get_loggers" (ros-generic-list "service")))))
 
 
 (ert-deftest ros-insert-msg-python-import-statement()
@@ -153,6 +157,9 @@
     (should (string= (s-trim (buffer-string)) "foo\nbar\n#include <foo/bar.h>\n#include <package/FooMsg.h>\nfoo\nbar"))
     )
   )
+
+
+
 (provide 'ros-test)
 
 ;;; ros-test.el ends here

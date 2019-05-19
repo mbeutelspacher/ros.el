@@ -28,4 +28,15 @@
 (when (require 'undercover nil t)
   (undercover "ros.el"))
 
+
+(defmacro with-roscore (&rest forms)
+  "Run FORMS with running roscore."
+  `(let ((process (when (not (ros-process-roscore-running-p))(start-process-shell-command "roscore" "roscore"
+                                                                                          "roscore"))))
+     (when process (sleep-for 1))
+     ,@forms
+     ))
+
+
+
 ;;; test-helper.el ends here
