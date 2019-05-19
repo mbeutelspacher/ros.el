@@ -3,7 +3,9 @@
 ;; Copyright (C) 2019 Max Beutelspacher
 
 ;; Author: Max Beutelspacher <max.beutelspacher@mailbox.org>
+;; URL: https://github.com/DerBeutlin/ros.el
 ;; Version: 0.1
+;; Package-Requires: ((emacs "24.4"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -25,8 +27,13 @@
 ;; package to interact with and write code for ROS systems
 
 ;;; Code:
+(require 'dired)
+(require 's)
+(require 'subr-x)
 
-(defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution.")
+(defgroup ros nil "Related to the Robot Operating System." :group 'external)
+
+(defcustom ros-distro (getenv "ROS_DISTRO") "Name of ROS Distribution." :type 'string :group 'ros)
 
 (defcustom ros-default-workspace nil
   "Path to binary/devel directory of default catkin workspace."
@@ -52,21 +59,22 @@
                                        ((s-suffix-p "bash" shell) ".bash")
                                        (t ".sh"))))
 
-(defun ros-source-workspace-command (workspace &optional profile)
-  "Return the right sourcing command for this workspace at PATH."
+(defun ros-catkin-source-workspace-command (workspace &optional profile)
+  "Return the right sourcing command for WORKSPACE. If PROFILE is not nil, this profile is used, otherwise the default profile is used."
   (if (not workspace)
       (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
     (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)))
       (unless (file-exists-p source-file)
-        (let* ((extended-devel-space (ros-catkin-get-extended-devel-space workspace profile))
+        (let* ((extended-devel-space (ros-catkin-extended-devel-space workspace profile))
               (extended-source-file (concat extended-devel-space "/setup" ros-setup-file-extension)))
           (message extended-source-file)
-          (if (and (file-exists-p extended-source-file) (y-or-n-p (format "%s does not exist, do you want to source %s instead?" source-file extended-source-file)))
+          (if (and (file-exists-p extended-source-file) (y-or-n-p (concat source-file " does not exist, do you want to source " extended-source-file" instead?")))
               (setq source-file extended-source-file)
               (error "%s could not be sourced" source-file))))
       (concat "source " source-file))))
 
-(defun ros-catkin-get-extended-devel-space (workspace &optional profile)
+(defun ros-catkin-extended-devel-space (workspace &optional profile)
+  "Return the path to the devel space that WORKSPACE with optinal PROFILE or default profile extends."
   (let ((profile-flag (if profile (concat "--profile " profile) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
@@ -77,118 +85,151 @@
 
 
 (defun ros-select-workspace (workspace &optional profile)
-  "Set `ros-current-workspace' to WORKSPACE."
+  "Select current ROS workspace.
+Set `ros-current-workspace' to WORKSPACE and `ros-current-profile' to PROFILE.
+If called interactively prompt for WORKSPACE and PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (setq ros-current-workspace workspace)
-  (if profile 
+  (if profile
       (setq ros-current-profile profile)
       (setq ros-current-profile (ros-completing-read-catkin-profiles workspace))
     ))
 
-(defun ros-select-profile()
-  (interactive)
-  (ros-select-workspace (ros-current-workspace)))
+(defun ros-select-profile(profile)
+  "Set `ros-current-profile' to PROFILE.  If called interactively prompt for PROFILE."
+  (interactive (list (ros-completing-read-catkin-profiles (ros-current-workspace))))
+  (ros-select-workspace (ros-current-workspace) profile))
 
-(defun ros-catkin-locate-command (workspace flag &optional profile) 
+(defun ros-catkin-locate-command (workspace flag &optional profile)
+  "Locate subfolders of catkin workspace.
+Returns catkin command to locate subfolders of WORKSPACE with optional PROFILE.
+The FLAG can be:
+\"s\" : Get the path to the source space
+\"b\" : Get the path to the build space
+\"d\" : Get the path to the devel space
+\"i\" : Get the path to the install space"
   (let ((profile-str (if profile (format "--profile %s" profile) "")))
-    (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))))
+    (if (member flag '("s" "b" "d" "i"))
+        (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))
+      (error "Catkin locate flag can only be s,b,d or i"))))
 
 (defun ros-list-catkin-profiles (workspace)
+  "Return list of all catkin profiles for WORKSPACE."
   (ros-shell-output-as-list (format "cd %s && catkin profile list -u" workspace)))
 
 (defun ros-completing-read-catkin-profiles (workspace)
+  "Completing read function for catkin profiles of WORKSPACE."
   (let ((profiles (ros-list-catkin-profiles workspace)))
     (completing-read (format "Profile: " ) profiles nil t nil nil (if (member ros-current-profile profiles) ros-current-profile "default"))))
 
 (defun ros-shell-command-to-string (cmd &optional workspace)
-  "Source the current workspace and run CMD and return the output as string."
+  "Run CMD after sourcing workspace and return output as a string.
+The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
   (let ((wspace (if workspace workspace (ros-current-workspace)))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
         (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
         )
-    (s-trim (shell-command-to-string (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-source-workspace-command wspace) cmd)))))
+    (s-trim (shell-command-to-string (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command wspace) cmd)))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
-  "Run CMD and return a list of each line of the output."
+  "Run CMD after sourcing workspace and return output lines as a list.
+The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
   (let ((wspace (if workspace workspace (ros-current-workspace))))
     (split-string (ros-shell-command-to-string cmd workspace)
                   "\n")))
 
 (defun ros-packages ()
-  "List all available ros packages in the current workspace."
+  "List all available ROS packages in the current workspace."
   (ros-shell-output-as-list "rospack list-names"))
 
 (defun ros-completing-read-packages ()
+  "Completing read function for ROS packages."
   (completing-read "Package: " (ros-packages) nil t ))
 
 (defun ros-current-package ()
-  "returns the name of the current ros package"
+  "Return the name of the ROS package the current buffer lies in.
+If the current buffer does not lie in a ROS package return nil."
   (interactive)
   (let* ((package-path (locate-dominating-file (ros-current-directory) "package.xml")))
-    (file-name-nondirectory(directory-file-name(file-name-directory package-path)))))
+    (when package-path (file-name-nondirectory(directory-file-name(file-name-directory package-path))))))
 
 (defun ros-current-directory ()
+  "Return the directory of the current buffer or the current dired directory."
   (if (buffer-file-name) (file-name-directory (buffer-file-name)) (dired-current-directory)))
 
 (defun ros-catkin-compile-command (cmd workspace &optional profile additional_cmd)
-  "Run catkin CMD after sourcing WORKSPACE."
+  "Run catkin CMD after sourcing WORKSPACE with optional PROFILE.
+If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
          (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
          (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "")))
-    (compile (format "%s && catkin %s %s %s" (ros-source-workspace-command workspace profile) cmd profile-flag add-cmd))))
+    (compile (format "%s && catkin %s %s %s" (ros-catkin-source-workspace-command workspace profile) cmd profile-flag add-cmd))))
 
 (defun ros-catkin-build-workspace(workspace &optional profile)
+  "Build the WORKSPACE with PROFILE or default if not provided.
+If called interactively prompt for WORKSPACE and PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     (ros-catkin-compile-command "build" workspace prof)))
 
 (defun ros-catkin-build-current-workspace()
+  "Build the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-build-workspace (ros-current-workspace) ros-current-profile))
 
 (defun ros-catkin-build-package(package)
+  "Build the ROS package PACKAGE in the workspace specified in `ros-current-workspace' and with the profile specified in `ros-current-profile'."
   (interactive (list (ros-completing-read-packages)))
   (ros-catkin-compile-command (format "build %s" package) (ros-current-workspace) ros-current-profile))
 
 (defun ros-catkin-build-current-package ()
+  "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', build it."
   (interactive)
   (ros-catkin-build-package (ros-current-package)))
 
 (defun ros-catkin-clean-workspace (workspace &optional profile)
+  "Run `catkin clean' in WORKSPACE with optional PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    (when (y-or-n-p (format "Do you really want to clean %s with profile %s" workspace prof))
+    (when (y-or-n-p (concat "Do you really want to clean " workspace " %s with profile " prof " ?"))
         (ros-catkin-compile-command "clean -y" workspace profile))))
+
 (defun ros-catkin-clean-current-workspace()
+  "Run `catkin clean' in workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-clean-workspace (ros-current-workspace) ros-current-profile))
 
 (defun ros-catkin-clean-package (package)
+  "Clean the ROS PACKAGE."
   (interactive (list (ros-completing-read-packages)))
-    (when (y-or-n-p (format "Do you really want to clean %s" package))
+    (when (y-or-n-p (concat "Do you really want to clean " package "?"))
       (ros-catkin-compile-command "clean -y" package)))
 
 (defun ros-catkin-clean-current-package()
+  "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', clean it."
   (interactive)
   (ros-catkin-clean-package (ros-current-package)))
  
-  
 (defun ros-catkin-test-package(package)
+  "Build and run all unittests in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
   (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package) )
   )
 
 (defun ros-catkin-test-current-package()
+  "Build and run all unittests in the package the current buffer lies in."
   (interactive)
   (ros-catkin-test-package (ros-current-package)))
 
 (defun ros-catkin-test-workspace(workspace &optional profile)
+  "Build and run all unittests in WORKSPACE with profile PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    ((ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof))))
+    (ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof)))
 
-(defun ros-catkin-test-current-workspace()
+(defun ros-test-current-workspace()
+  "Build and run all unittests in the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-test-workspace (ros-current-workspace) ros-current-profile))
 
@@ -325,15 +366,20 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (ros-process-start-process buffer-name (concat "rostopic echo " topic-full-name))))
 
 (defun ros-process-start-process (buffer-name cmd)
+  "Run CMD in buffer BUFFER-NAME.
+In this environment the environment variables `ROS_MASTER_URI'
+and `ROS_IP' are set according to the current settings.
+Additionally the current workspace is sourced."
   (let* ((master-uri (ros-env-ros-master-uri))
          (ros-ip (ros-env-ros-ip))
          (process-environment (cons (when master-uri (concat "ROS_MASTER_URI=" master-uri))(cons (when ros-ip (concat "ROS_IP=" ros-ip)) process-environment)))
-         (process (start-process-shell-command buffer-name buffer-name (format "%s && %s" (ros-source-workspace-command (ros-current-workspace) ros-current-profile) cmd))))
+         (process (start-process-shell-command buffer-name buffer-name (format "%s && %s" (ros-catkin-source-workspace-command (ros-current-workspace) ros-current-profile) cmd))))
     (view-buffer-other-window (process-buffer process))
     (ros-process-mode)))
 
 (defun ros-info-get-section ()
-  "Get the section of thing at point."
+  "Get the section of ros info of the symbol at point.
+These sections help to identitfy the type of the symbol at point e.g. Topic, Node etc."
   (save-excursion
     (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:\\|Type:"))
                  (end (if start (re-search-forward ":"))))
@@ -368,6 +414,9 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (when process (set-process-filter process 'ros-process-filter))))
 
 (defun ros-process-filter (process string)
+  "Function to automatically scroll in the ros-proces-mode.
+The STRING of the output of PROCESS will be inserted into the buffer
+and the point will be kept at the latest output."
   (let ((buffer (process-buffer process))
         (mark (process-mark process)))
     (when (buffer-live-p buffer)
@@ -420,21 +469,22 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (arguments (string-trim (s-trim (buffer-string)) "\"" "\""))
          (buffer-name (concat "*rosservice call " service "*"))
          (old-buffer (current-buffer)))
-    (ros-process-start-process buffer-name "rosservice" (list "call" service arguments))
+    (ros-process-start-process buffer-name (concat "rosservice call " service " " arguments))
     (kill-buffer old-buffer)))
 
-(defun ros-insert-import-msg (name)
-  "Ask for message and include it in file."
+(defun ros-insert-import-msg (message)
+  "Prompt for MESSAGE and include it in file."
   (interactive (list (ros-generic-completing-read "msg")))
-  (ros-insert-import "msg" name))
+  (ros-insert-import "msg" message))
 
 
-(defun ros-insert-import-srv (name)
-  "Ask for service and include it in file."
+(defun ros-insert-import-srv (service)
+  "Prompt for SERVICE and include it in file."
   (interactive (list (ros-generic-completing-read "srv")))
-  (ros-insert-import "srv" name))
+  (ros-insert-import "srv" service))
 
 (defun ros-insert-import (type name)
+  "Insert TYPE (either msg or srv) definition for NAME in the current buffer."
   (let ((package (car (split-string name "/")))
         (item-name (car (cdr(split-string name "/")))))
     (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
@@ -443,6 +493,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   )
 )
 (defun ros-insert-import-python (type package name)
+  "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
       (progn
         (when (not (ros-import-is-included-python-p type package name))
@@ -458,27 +509,35 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
                 (insert (format "%s %s" start-import-statement name))))))))
 
 (defun ros-insert-import-python-best-import-location (type)
-    (or (ros-string-in-buffer (format "from .*\.%s import .*" type)) (ros-string-in-buffer "import") (point-min))
-)
+    "Return the best location for an python import of TYPE.
+TYPE can be either msg or srv.
+The best location would be another import of this TYPE,
+the second best another import and lastly the beginning of the buffer."
+    (or (ros-string-in-buffer-p (format "from .*\.%s import .*" type)) (ros-string-in-buffer-p "import") (point-min)))
 
-(defun ros-string-in-buffer (string)
+(defun ros-string-in-buffer-p (string)
+  "Return t if STRING is in the current buffer, nil otherwise."
   (save-excursion
     (goto-char (point-min))
-    (re-search-forward string nil t)
-    )
-  )
+    (re-search-forward string nil t)))
+
 (defun ros-import-is-included-python-p (type package name)
+  "Return t if NAME in PACKAGE of TYPE is already included in the current python buffer."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (format "from %s.%s import .*%s[, \n]" package type name) nil t)))
 
 (defun ros-import-search-same-package-import-python (type package)
+  "Search for import of TYPE  of PACKAGE in the current buffer.
+TYPE can be either msg or srv.
+Return nil if there is None and the point of the first import if there is one."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (format "from %s.%s import" package type) nil t)))
 
 
 (defun ros-insert-import-cpp (type package name)
+  "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current cpp buffer."
   (when (not (ros-import-is-included-cpp-p package name))
     (progn
       (goto-char  (ros-insert-import-cpp-best-import-location type package))
@@ -487,25 +546,36 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
       (insert (format "#include <%s/%s.h>" package name)))))
 
 (defun ros-import-is-included-cpp-p (package name)
+  "Return t if NAME in PACKAGE of TYPE is already included in the current cpp buffer."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (format "#include <%s\/%s.h>" package name) nil t)))
 
 (defun ros-insert-import-cpp-best-import-location (type package)
-  (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min))
+  "Return the best location for an cpp include of TYPE.
+TYPE can be either msg or srv.
+The best location would be another import of the same PACKAGE,
+the second best another import of this TYPE
+the third best another incleude
+and lastly the beginning of the buffer."
+  (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min))
   )
 
 (defun ros-dired-package (package)
+  "Open the root of PACKAGE in dired."
   (interactive (list (ros-completing-read-packages)))
   (dired (s-trim(ros-shell-command-to-string (concat "rospack find " package)))))
 
 (defun ros-loggers (node)
+  "List of all current loggers of NODE."
   (ros-shell-output-as-list (concat "rosconsole list " node)))
 
 (defun ros-completing-read-logger(node)
+  "Completing read function for loggers in NODE."
     (completing-read "Logger: " (ros-loggers node) nil t))
 
 (defun ros-logger-set-level ()
+  "Prompt for NODE and LOGGER and set the logger level."
   (interactive)
   (let* ((node (ros-generic-completing-read "node"))
          (logger (ros-completing-read-logger node))
@@ -514,18 +584,22 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (ros-shell-command-to-string (concat "rosconsole set " node " " logger " " new-value))))
 
 (defun ros-param-list()
+  "List of ROS parameters."
   (ros-shell-output-as-list "rosparam list"))
 
 (defun ros-param-completing-read()
+  "Completing read function for ROS parameters."
   (completing-read "Parameter: " (ros-param-list) nil t))
 
 (defun ros-param-set(parameter)
+  "Prompt for PARAMETER and set it to a new value."
   (interactive (list (ros-param-completing-read)))
   (let* ((current-value (string-trim (ros-shell-command-to-string (concat "rosparam get " parameter)) "'" "'"))
          (new-value (ros-param-read-value parameter current-value)))
     (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
 
 (defun ros-param-read-value (parameter old-value)
+  "Prompt for a new value for PARAMETER, the collection is generted based on the OLD-VALUE of PARAMETER."
   (let ((collection)
         (bool-collection '("true" "false")))
     (when (member old-value bool-collection) (setq collection bool-collection))
@@ -537,42 +611,52 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 (defvar ros-env-network-interface nil)
 
 (defun ros-env-ros-master-uri ()
+  "Return the current ROS-MASTER—URI."
   (when ros-env-ros-master
     (s-trim(format "http://%s:11311/" ros-env-ros-master))))
 
 (defun ros-env-completing-read-ros-master ()
+  "Completing Read function for saved ROS Masters.
+This returns the master in the form \"(Name, Value)\""
   (completing-read "ROS—Master: " (mapcar 'car ros-env-saved-ros-masters) nil t nil nil (when ros-env-ros-master (car (rassoc ros-env-ros-master ros-env-saved-ros-masters)))))
 
-
 (defun ros-env-set-ros-master (new-master)
+  "Prompt for NEW-MASTER to set it to `ros-env-ros-master'."
   (interactive  (list (ros-env-completing-read-ros-master)))
   (setq ros-env-ros-master (cdr(assoc (s-trim(car(split-string new-master "("))) ros-env-saved-ros-masters)))
   (message (concat "ROS Master is set to " ros-env-ros-master))
   )
 
 (defun ros-env-get-ip-address (dev)
-  "get the IP-address for device DEV"
+  "Return the IP-address for network device DEV."
   (format-network-address (car (network-interface-info dev)) t))
 
 (defun ros-env-ros-ip ()
+  "Return the IP of the current `ros-env-network-interface'.
+If this is not set return nil"
   (when ros-env-network-interface
     (car (split-string (ros-env-get-ip-address ros-env-network-interface) ":"))))
 
 (defun ros-env-network-interfaces ()
-  ""
+  "List the network interfaces of the machine."
   (mapcar (lambda (name-ip-pair) (ros-env-network-interface-description-string (car name-ip-pair) (car(split-string(format-network-address(cdr name-ip-pair) ":"))))) (network-interface-list)))
 
 (defun ros-env-network-interface-description-string (name ip)
-  ""
+  "Format NAME and IP as \"NAME (IP)\"."
   (format "%s (%s)" name ip))
 
 (defun ros-env-completing-read-network-interface()
+  "Completing read function for network interfaces."
   (completing-read "Network interface:" (ros-env-network-interfaces) nil t nil nil (when ros-env-network-interface (ros-env-network-interface-description-string ros-env-network-interface (ros-env-ros-ip)))))
 
 (defun ros-env-select-network-interface (interface)
+  "Prompt for INTERFACE to set it to `ros-env-network-interface'."
   (interactive (list (ros-env-completing-read-network-interface)))
   (setq ros-env-network-interface (s-trim(car (split-string interface "(")))))
 
+(defun ros-process-roscore-running-p ()
+  "Return t if there is a roscore running on the system, nil otherwise."
+  (not(string= (ros-shell-command-to-string "rosnode list") "ERROR: Unable to communicate with master!")))
 
 (provide 'ros)
 
