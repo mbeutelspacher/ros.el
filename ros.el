@@ -122,21 +122,29 @@ The FLAG can be:
   (let ((profiles (ros-list-catkin-profiles workspace)))
     (completing-read (format "Profile: " ) profiles nil t nil nil (if (member ros-current-profile profiles) ros-current-profile "default"))))
 
-(defun ros-shell-command-to-string (cmd &optional workspace)
-  "Run CMD after sourcing workspace and return output as a string.
-The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
+(defun ros-shell-prepend-ros-environment-commands (cmd &optional workspace profile)
+  "Return CMD with prepended sourcing and environment commands.
+These consists of setting the ROS_MASTER_URI, the ROS_IP
+and sourcing WORKSPACE with PROFILE.
+If PROFILE and WORKSPACE are not provided use the settings
+in `ros-current-workspace' and `ros-current-profile'."
   (let ((wspace (if workspace workspace (ros-current-workspace)))
+         (prof (if profile profile ros-current-profile))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
         (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
         )
-    (s-trim (shell-command-to-string (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command wspace) cmd)))))
+    (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command wspace prof) cmd)))
+
+(defun ros-shell-command-to-string (cmd &optional workspace profile)
+  "Run CMD after sourcing workspace and return output as a string.
+If workspace or profile are nil the ones specified in `ros-current-workspace'
+ and `ros-current-profile' are used."
+(s-trim (shell-command-to-string (ros-shell-prepend-ros-environment-commands cmd workspace profile))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD after sourcing workspace and return output lines as a list.
 The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
-  (let ((wspace (if workspace workspace (ros-current-workspace))))
-    (split-string (ros-shell-command-to-string cmd workspace)
-                  "\n")))
+    (split-string (ros-shell-command-to-string cmd workspace) "\n"))
 
 (defun ros-packages ()
   "List all available ROS packages in the current workspace."
@@ -164,7 +172,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
          (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
          (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "")))
-    (compile (format "%s && catkin %s %s %s" (ros-catkin-source-workspace-command workspace profile) cmd profile-flag add-cmd))))
+    (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
 
 (defun ros-catkin-build-workspace(workspace &optional profile)
   "Build the WORKSPACE with PROFILE or default if not provided.
@@ -370,10 +378,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 In this environment the environment variables `ROS_MASTER_URI'
 and `ROS_IP' are set according to the current settings.
 Additionally the current workspace is sourced."
-  (let* ((master-uri (ros-env-ros-master-uri))
-         (ros-ip (ros-env-ros-ip))
-         (process-environment (cons (when master-uri (concat "ROS_MASTER_URI=" master-uri))(cons (when ros-ip (concat "ROS_IP=" ros-ip)) process-environment)))
-         (process (start-process-shell-command buffer-name buffer-name (format "%s && %s" (ros-catkin-source-workspace-command (ros-current-workspace) ros-current-profile) cmd))))
+  (let* ((process (start-process-shell-command buffer-name buffer-name (ros-shell-prepend-ros-environment-commands cmd))))
     (view-buffer-other-window (process-buffer process))
     (ros-process-mode)))
 
