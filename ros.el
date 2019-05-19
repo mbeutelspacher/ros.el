@@ -53,20 +53,22 @@
   :group 'ros-workspace
   :type 'sexp)
 
-(defvar ros-setup-file-extension (let ((shell (getenv "SHELL")))
-                                      (cond
-                                       ((s-suffix-p "zsh" shell) ".zsh")
-                                       ((s-suffix-p "bash" shell) ".bash")
-                                       (t ".sh"))))
+(defun ros-setup-file-extension ()
+  "Return the file extension of the source file used by the current shell."
+  (let  (shell (s-trim(shell-command-to-string "echo $0")))
+    (cond
+     ((s-suffix-p "zsh" shell) ".zsh")
+     ((s-suffix-p "bash" shell) ".bash")
+     (t ".sh"))))
 
 (defun ros-catkin-source-workspace-command (workspace &optional profile)
   "Return the right sourcing command for WORKSPACE. If PROFILE is not nil, this profile is used, otherwise the default profile is used."
   (if (not workspace)
-      (format "source /opt/ros/%s/setup%s" ros-distro ros-setup-file-extension)
-    (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" ros-setup-file-extension)))
+      (format "source /opt/ros/%s/setup%s" ros-distro (ros-setup-file-extension))
+    (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" (ros-setup-file-extension))))
       (unless (file-exists-p source-file)
         (let* ((extended-devel-space (ros-catkin-extended-devel-space workspace profile))
-              (extended-source-file (concat extended-devel-space "/setup" ros-setup-file-extension)))
+              (extended-source-file (concat extended-devel-space "/setup" (ros-setup-file-extension))))
           (message extended-source-file)
           (if (and (file-exists-p extended-source-file) (y-or-n-p (concat source-file " does not exist, do you want to source " extended-source-file" instead?")))
               (setq source-file extended-source-file)
@@ -137,7 +139,7 @@ in `ros-current-workspace' and `ros-current-profile'."
 
 (defun ros-shell-command-to-string (cmd &optional workspace profile)
   "Run CMD after sourcing workspace and return output as a string.
-If workspace or profile are nil the ones specified in `ros-current-workspace'
+If WORKSPACE or PROFILE are nil the ones specified in `ros-current-workspace'
  and `ros-current-profile' are used."
 (s-trim (shell-command-to-string (ros-shell-prepend-ros-environment-commands cmd workspace profile))))
 
@@ -275,10 +277,11 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   "major mode for displaying ros info messages"
   )
 
-(define-key ros-info-mode-map (kbd "S") 'ros-show-thing-at-point)
+(define-key ros-info-mode-map (kbd "RET") 'ros-show-thing-at-point)
 (define-key ros-info-mode-map (kbd "E") 'ros-echo-topic-at-point)
 (define-key ros-info-mode-map (kbd "C") 'ros-call-service-at-point)
 (define-key ros-info-mode-map (kbd "K") 'ros-kill-node-at-point)
+
 
 (defun ros-msg-show (msg)
   "Prompt for MSG and show structure."
