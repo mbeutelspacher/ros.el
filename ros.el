@@ -573,7 +573,11 @@ and lastly the beginning of the buffer."
 (defun ros-dired-package (package)
   "Open the root of PACKAGE in dired."
   (interactive (list (ros-completing-read-packages)))
-  (dired (s-trim(ros-shell-command-to-string (concat "rospack find " package)))))
+  (dired (ros-get-package-path package)))
+
+(defun ros-get-package-path (package)
+  (s-trim(ros-shell-command-to-string (concat "rospack find " package)))
+  )
 
 (defun ros-loggers (node)
   "List of all current loggers of NODE."
