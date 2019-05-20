@@ -142,7 +142,8 @@ in `ros-current-workspace' and `ros-current-profile'."
   "Run CMD after sourcing workspace and return output as a string.
 If WORKSPACE or PROFILE are nil the ones specified in `ros-current-workspace'
  and `ros-current-profile' are used."
-(s-trim (shell-command-to-string (ros-shell-prepend-ros-environment-commands cmd workspace profile))))
+  (let ((default-directory ros-env-host-directory))
+    (s-trim (shell-command-to-string (ros-shell-prepend-ros-environment-commands cmd workspace profile)))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD after sourcing workspace and return output lines as a list.
@@ -277,7 +278,6 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 (define-derived-mode ros-info-mode messages-buffer-mode "ros-info-mode"
   "major mode for displaying ros info messages"
   )
-
 (define-key ros-info-mode-map (kbd "RET") 'ros-show-thing-at-point)
 (define-key ros-info-mode-map (kbd "E") 'ros-echo-topic-at-point)
 (define-key ros-info-mode-map (kbd "C") 'ros-call-service-at-point)
@@ -670,6 +670,8 @@ If this is not set return nil"
 (defun ros-process-roscore-running-p ()
   "Return t if there is a roscore running on the system, nil otherwise."
   (not(string= (ros-shell-command-to-string "rosnode list") "ERROR: Unable to communicate with master!")))
+
+(defvar ros-env-host-directory "~/")
 
 (provide 'ros)
 
