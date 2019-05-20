@@ -55,11 +55,12 @@
 
 (defun ros-setup-file-extension ()
   "Return the file extension of the source file used by the current shell."
-  (let  (shell (s-trim(shell-command-to-string "echo $0")))
+  (let  ((inferior-shell (s-trim(shell-command-to-string "echo $0"))))
     (cond
-     ((s-suffix-p "zsh" shell) ".zsh")
-     ((s-suffix-p "bash" shell) ".bash")
+     ((s-suffix-p "zsh" inferior-shell) ".zsh")
+     ((s-suffix-p "bash" inferior-shell) ".bash")
      (t ".sh"))))
+
 
 (defun ros-catkin-source-workspace-command (workspace &optional profile)
   "Return the right sourcing command for WORKSPACE. If PROFILE is not nil, this profile is used, otherwise the default profile is used."
