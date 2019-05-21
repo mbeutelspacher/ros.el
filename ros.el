@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 
-;; package to interact with and write code for ROS systems
+;; A package to ease the interaction ROS nodes and the development of ROS software
 
 ;;; Code:
 (require 'dired)
@@ -226,8 +226,7 @@ If called interactively prompt for WORKSPACE and PROFILE."
 (defun ros-catkin-test-package(package)
   "Build and run all unittests in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
-  (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package) )
-  )
+  (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
 
 (defun ros-catkin-test-current-package()
   "Build and run all unittests in the package the current buffer lies in."
@@ -276,8 +275,8 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (ros-info-mode))
 
 (define-derived-mode ros-info-mode messages-buffer-mode "ros-info-mode"
-  "major mode for displaying ros info messages"
-  )
+  "major mode for displaying ros info messages")
+
 (define-key ros-info-mode-map (kbd "RET") 'ros-show-thing-at-point)
 (define-key ros-info-mode-map (kbd "E") 'ros-echo-topic-at-point)
 (define-key ros-info-mode-map (kbd "C") 'ros-call-service-at-point)
@@ -403,17 +402,17 @@ These sections help to identitfy the type of the symbol at point e.g. Topic, Nod
     (pop-to-buffer buffer-name)
     (erase-buffer)
     (insert prototype-text)
-    (if (string= type "srv") (ros-service-call-mode) (ros-topic-pub-mode))
-    ))
+    (if (string= type "srv") (ros-service-call-mode) (ros-topic-pub-mode))))
   
 (define-derived-mode ros-topic-pub-mode text-mode "ros-topic-pub-mode"
-  "major mode for publishing ros msg"
-  )
+  "major mode for publishing ros msg")
+
 (define-key ros-topic-pub-mode-map (kbd "C-c C-c") 'ros-topic-pub-buffer)
 (define-key ros-topic-pub-mode-map (kbd "C-c C-k") 'kill-this-buffer)
 
 (define-derived-mode ros-service-call-mode text-mode "ros-service-call-mode"
   "major mode for calling ros services")
+
 (define-key ros-service-call-mode-map (kbd "C-c C-c") 'ros-service-call-buffer)
 (define-key ros-service-call-mode-map (kbd "C-c C-k") 'kill-this-buffer)
 
@@ -498,9 +497,8 @@ and the point will be kept at the latest output."
         (item-name (car (cdr(split-string name "/")))))
     (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
           ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
-          (t (message "Only works in Python and C++ mode")))
-  )
-)
+          (t (message "Only works in Python and C++ mode")))))
+
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
@@ -567,8 +565,7 @@ The best location would be another import of the same PACKAGE,
 the second best another import of this TYPE
 the third best another incleude
 and lastly the beginning of the buffer."
-  (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min))
-  )
+  (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min)))
 
 (defun ros-dired-package (package)
   "Open the root of PACKAGE in dired."
@@ -577,8 +574,7 @@ and lastly the beginning of the buffer."
 
 (defun ros-get-package-path (package)
   "Return the path PACKAGE lies in."
-  (s-trim(ros-shell-command-to-string (concat "rospack find " package)))
-  )
+  (s-trim(ros-shell-command-to-string (concat "rospack find " package))))
 
 (defun ros-loggers (node)
   "List of all current loggers of NODE."
