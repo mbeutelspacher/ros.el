@@ -92,7 +92,8 @@
 ;;;###autoload
 (defun ros-select-workspace (workspace &optional profile)
   "Select current ROS workspace.
-Set `ros-current-workspace' to WORKSPACE and `ros-current-profile' to PROFILE.
+Set the variable `ros-current-workspace' to WORKSPACE
+and the variable `ros-current-profile' to PROFILE.
 If called interactively prompt for WORKSPACE and PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (setq ros-current-workspace workspace)
@@ -102,7 +103,7 @@ If called interactively prompt for WORKSPACE and PROFILE."
 
 ;;;###autoload
 (defun ros-select-profile(profile)
-  "Set `ros-current-profile' to PROFILE.  If called interactively prompt for PROFILE."
+  "Set the variable `ros-current-profile' to PROFILE.  If called interactively prompt for PROFILE."
   (interactive (list (ros-completing-read-catkin-profiles (ros-current-workspace))))
   (ros-select-workspace (ros-current-workspace) profile))
 
@@ -133,7 +134,7 @@ The FLAG can be:
 These consists of setting the ROS_MASTER_URI, the ROS_IP
 and sourcing WORKSPACE with PROFILE.
 If PROFILE and WORKSPACE are not provided use the settings
-in `ros-current-workspace' and `ros-current-profile'."
+in the variables `ros-current-workspace' and `ros-current-profile'."
   (let ((wspace (if workspace workspace (ros-current-workspace)))
          (prof (if profile profile ros-current-profile))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
@@ -143,14 +144,15 @@ in `ros-current-workspace' and `ros-current-profile'."
 
 (defun ros-shell-command-to-string (cmd &optional workspace profile)
   "Run CMD after sourcing workspace and return output as a string.
-If WORKSPACE or PROFILE are nil the ones specified in `ros-current-workspace'
- and `ros-current-profile' are used."
+If WORKSPACE or PROFILE are nil the ones specified in
+the variables `ros-current-workspace'and `ros-current-profile' are used."
   (let ((default-directory ros-env-host-directory))
     (s-trim (shell-command-to-string (ros-shell-prepend-ros-environment-commands cmd workspace profile)))))
 
 (defun ros-shell-output-as-list (cmd &optional workspace)
   "Run CMD after sourcing workspace and return output lines as a list.
-The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
+The WORKSPACE or if nil the one returned by the function
+`ros-current-workspace' is sourced."
     (split-string (ros-shell-command-to-string cmd workspace) "\n"))
 
 (defun ros-packages ()
@@ -190,19 +192,22 @@ If called interactively prompt for WORKSPACE and PROFILE."
 
 ;;;###autoload
 (defun ros-catkin-build-current-workspace()
-  "Build the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
+  "Build the workspace with profile specified in the variables `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-build-workspace (ros-current-workspace) ros-current-profile))
 
 ;;;###autoload
 (defun ros-catkin-build-package(package)
-  "Build the ROS package PACKAGE in the workspace specified in `ros-current-workspace' and with the profile specified in `ros-current-profile'."
+  "Build the ROS package PACKAGE.
+The packages will be built in the workspace specified
+in the variable `ros-current-workspace' and with the profile
+specified in the variable`ros-current-profile'."
   (interactive (list (ros-completing-read-packages)))
   (ros-catkin-compile-command (format "build %s" package) (ros-current-workspace) ros-current-profile))
 
 ;;;###autoload
 (defun ros-catkin-build-current-package ()
-  "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', build it."
+  "If the current buffer is part of a ROS package in the workspace specified by the variable `ros-current-workspace', build it."
   (interactive)
   (ros-catkin-build-package (ros-current-package)))
 
@@ -216,7 +221,7 @@ If called interactively prompt for WORKSPACE and PROFILE."
 
 ;;;###autoload
 (defun ros-catkin-clean-current-workspace()
-  "Run `catkin clean' in workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
+  "Run `catkin clean' in workspace with profile specified in the variables `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-clean-workspace (ros-current-workspace) ros-current-profile))
 
@@ -229,7 +234,7 @@ If called interactively prompt for WORKSPACE and PROFILE."
 
 ;;;###autoload
 (defun ros-catkin-clean-current-package()
-  "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', clean it."
+  "If the current buffer is part of a ROS package in the workspace specified by  in the variable `ros-current-workspace', clean it."
   (interactive)
   (ros-catkin-clean-package (ros-current-package)))
 
@@ -254,7 +259,9 @@ If called interactively prompt for WORKSPACE and PROFILE."
 
 ;;;###autoload
 (defun ros-test-current-workspace()
-  "Build and run all unittests in the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
+  "Build and run all unittests in the current workspace.
+The workspace and the profile are specified in the variables
+`ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-test-workspace (ros-current-workspace) ros-current-profile))
 
@@ -661,7 +668,7 @@ This returns the master in the form \"(Name, Value)\""
 
 ;;;###autoload
 (defun ros-env-set-ros-master (new-master)
-  "Prompt for NEW-MASTER to set it to `ros-env-ros-master'."
+  "Prompt for NEW-MASTER to set the variable `ros-env-ros-master'."
   (interactive  (list (ros-env-completing-read-ros-master)))
   (setq ros-env-ros-master (cdr(assoc (s-trim(car(split-string new-master "("))) ros-env-saved-ros-masters)))
   (message (concat "ROS Master is set to " ros-env-ros-master))
@@ -691,7 +698,7 @@ If this is not set return nil"
 
 ;;;###autoload
 (defun ros-env-select-network-interface (interface)
-  "Prompt for INTERFACE to set it to `ros-env-network-interface'."
+  "Prompt for INTERFACE to set the variable `ros-env-network-interface'."
   (interactive (list (ros-env-completing-read-network-interface)))
   (setq ros-env-network-interface (s-trim(car (split-string interface "(")))))
 
@@ -701,7 +708,7 @@ If this is not set return nil"
 
 (defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
 
-(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose `ros-env-host-directory'." :type (list 'directory))
+(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose the variable `ros-env-host-directory'." :type (list 'directory))
 
 (defun ros-env-completing-read-host-directory()
   "Completing read function for host directory."
