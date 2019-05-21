@@ -576,6 +576,7 @@ and lastly the beginning of the buffer."
   (dired (ros-get-package-path package)))
 
 (defun ros-get-package-path (package)
+  "Return the path PACKAGE lies in."
   (s-trim(ros-shell-command-to-string (concat "rospack find " package)))
   )
 
@@ -673,7 +674,7 @@ If this is not set return nil"
 
 (defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
 
-(defvar ros-env-saved-host-directory '("~/"))
+(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose `ros-env-host-directory'." :type (list 'directory))
 
 (defun ros-env-completing-read-host-directory()
   "Completing read function for host directory."
