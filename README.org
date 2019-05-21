@@ -1,0 +1,63 @@
+* ros.el
+=ros.el= is an emacs package which should ease the interaction with ROS nodes as well as help developing software for ROS systems.
+[[https://www.ros.org/][ROS]] is the *R* obot *O* perating *S* ystem and focuses on exchanging messages between nodes. Since the systems can become quite complex,
+why not use the best editor in the word to interact with it?
+The main advantage of this package over using the shell commands is using =completing-read= functions for almost anything
+which allows for fuzzy matching using packages like =helm= or =ivy=.
+
+** Requirements
+=ros.el= relies on standard ros commands like =rostopic=, =rospack=, =rosnode=... as well as the =catkin-build-tools=.
+Most of these should be standard in every ROS distribution. Information how to install =catkin-build-tools= can be found [[https://catkin-tools.readthedocs.io/en/latest/installing.html][here]].
+
+** Setup 
+In order to use =ros.el= one should set the following variables:
+#+begin_src emacs-lisp
+(setq ros-workspaces '("PATH/TO/ROS/WORKSPACE", "PATH/TO/OTHER/WORKSPACE"))
+(setq ros-default-workspace "PATH/TO/ROS/WORKSPACE")
+#+end_src
+Additionally if one wants to interact with ROS systems on other computers its nice to save those into
+#+begin_src emacs-lisp
+(add-to-list 'ros-env-saved-ros-masters '("HOSTNAME". "IP-ADRESS"))
+#+end_src
+
+** Features
+*** Sourcing workspace
+Use =ros-select-workspace= and =ros-select-workspace= to choose the current workspace and catkin profile. All functionality below will source this workspace before taking action.
+*** Building workspaces, packages, tests
+Use =ros-catkin-build-workspace=, =ros-catkin-build-package=, =ros-catkin-test-workspace=, =ros-catkin-test-package=
+to prompt for a workspace or package respectively and either build it or build it and run all unittests in a compilation buffer
+with links in case of warnings an errors.
+With =ros-catkin-build-curren-workspace=, =ros-catkin-build-curren-package=, =ros-catkin-test-current-workspace=, =ros-catkin-test-current-package=
+instead of prompting for a workspace or package the currently selected workspace and the ROS package, the buffer lies in are selected.
+=ros-catkin-clean-workspace=, =ros-catkin-clean-package=, =ros-catkin-clean-current-workspace=, =ros-catkin-clean-current-package= can be used to delete all builds for the specific package or workspace.
+*** Interact with ROS topics, srv-files, msg-files, services and nodes
+Use =ros-(msg|topic|service|srv|node)-show= to prompt for a message file, active topic, active service, service file or active node respectively and show info about it.
+By default =ros-info-mode= is activated which has the following keybindings:
+| Key    | Action                                                |
+|--------+-------------------------------------------------------|
+| Return | Show info about (msg,topic,srv,service,node) at point |
+| E      | Echo topic at point                                   |
+| C      | Call Service at point                                 |
+| K      | Kill node at point                                    |
+|--------+-------------------------------------------------------|
+
+This makes it possible to explore a ROS systems in an easy way.
+There are also direct commands to echo a topic (=ros-topic-echo=), call a service (=ros-service-call=)
+and publish to a topic (=ros-topic-pub=). For the latter two a buffer will be created
+with a prototype of the service request or the message which can be submitted using the key combination =C-c C-c=.
+*** Changing ROS parameter
+Use =ros-param-set= to read and write ROS-parameters.
+*** Include msg and srv header in C++ and Python modes
+=ros-insert-import-msg= and =ros-insert-import-srv= will prompt for a message or service type and then check if it
+is already included in the current C++ or Python buffer. If that is not the case it will insert the approriate import/include.
+*** Interact with ROS on other machines
+Use =ros-env-set-ros-master= to choose a ROS-MASTER from =ros-env-saved-ros-masters=.
+Additionally set the network interface (e.g. wifi or eth0) which is used to connect to the other system using
+=ros-env-select-network-interface=. As long as the ROS-MASTER is set the environment variables ROS_IP and ROS_MASTER_URI
+will be set accordingly to use all the functionality above also with ROS systems on other systems.
+One has to keep in mind that the messages and services have to be also available in the chosen workspace.
+Using workspaces on remote systems is yet a work in progress.
+
+** Bugs, Issues
+This is still a very experimental package. Feel welcome to issue bug-reports, feature and pull requests.
+Also be warned that this package might change a lot in the future.
