@@ -175,7 +175,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
          (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
-         (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "")))
+         (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "true")))
     (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
 
 (defun ros-catkin-build-workspace(workspace &optional profile)
