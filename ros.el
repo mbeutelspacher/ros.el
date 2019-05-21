@@ -671,7 +671,19 @@ If this is not set return nil"
   "Return t if there is a roscore running on the system, nil otherwise."
   (not(string= (ros-shell-command-to-string "rosnode list") "ERROR: Unable to communicate with master!")))
 
-(defvar ros-env-host-directory "~/")
+(defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
+
+(defvar ros-env-saved-host-directory '("~/"))
+
+(defun ros-env-completing-read-host-directory()
+  "Completing read function for host directory."
+  (completing-read "Host Directory: " ros-env-saved-host-directory nil nil ros-env-host-directory))
+
+(defun ros-env-select-host-directory(directory)
+  "Prompt for DIRECTORY and set it to host directory."
+  (interactive (list (ros-env-completing-read-host-directory)))
+  (setq ros-env-host-directory directory))
+
 
 (provide 'ros)
 
