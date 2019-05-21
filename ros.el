@@ -86,7 +86,7 @@
   "Read a workspace from the minibuffer."
   (completing-read "Workspace: " ros-workspaces nil t nil nil (ros-current-workspace)))
 
-
+;;;###autoload
 (defun ros-select-workspace (workspace &optional profile)
   "Select current ROS workspace.
 Set `ros-current-workspace' to WORKSPACE and `ros-current-profile' to PROFILE.
@@ -95,9 +95,9 @@ If called interactively prompt for WORKSPACE and PROFILE."
   (setq ros-current-workspace workspace)
   (if profile
       (setq ros-current-profile profile)
-      (setq ros-current-profile (ros-completing-read-catkin-profiles workspace))
-    ))
+      (setq ros-current-profile (ros-completing-read-catkin-profiles workspace))))
 
+;;;###autoload
 (defun ros-select-profile(profile)
   "Set `ros-current-profile' to PROFILE.  If called interactively prompt for PROFILE."
   (interactive (list (ros-completing-read-catkin-profiles (ros-current-workspace))))
@@ -161,7 +161,6 @@ The WORKSPACE or if nil the one returned by `ros-current-workspace' is sourced."
 (defun ros-current-package ()
   "Return the name of the ROS package the current buffer lies in.
 If the current buffer does not lie in a ROS package return nil."
-  (interactive)
   (let* ((package-path (locate-dominating-file (ros-current-directory) "package.xml")))
     (when package-path (file-name-nondirectory(directory-file-name(file-name-directory package-path))))))
 
@@ -178,6 +177,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
          (add-cmd (if additional_cmd (format "&& %s" additional_cmd) "true")))
     (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
 
+;;;###autoload
 (defun ros-catkin-build-workspace(workspace &optional profile)
   "Build the WORKSPACE with PROFILE or default if not provided.
 If called interactively prompt for WORKSPACE and PROFILE."
@@ -185,21 +185,25 @@ If called interactively prompt for WORKSPACE and PROFILE."
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     (ros-catkin-compile-command "build" workspace prof)))
 
+;;;###autoload
 (defun ros-catkin-build-current-workspace()
   "Build the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-build-workspace (ros-current-workspace) ros-current-profile))
 
+;;;###autoload
 (defun ros-catkin-build-package(package)
   "Build the ROS package PACKAGE in the workspace specified in `ros-current-workspace' and with the profile specified in `ros-current-profile'."
   (interactive (list (ros-completing-read-packages)))
   (ros-catkin-compile-command (format "build %s" package) (ros-current-workspace) ros-current-profile))
 
+;;;###autoload
 (defun ros-catkin-build-current-package ()
   "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', build it."
   (interactive)
   (ros-catkin-build-package (ros-current-package)))
 
+;;;###autoload
 (defun ros-catkin-clean-workspace (workspace &optional profile)
   "Run `catkin clean' in WORKSPACE with optional PROFILE."
   (interactive (list (ros-completing-read-workspace)))
@@ -207,38 +211,45 @@ If called interactively prompt for WORKSPACE and PROFILE."
     (when (y-or-n-p (concat "Do you really want to clean " workspace " %s with profile " prof " ?"))
         (ros-catkin-compile-command "clean -y" workspace profile))))
 
+;;;###autoload
 (defun ros-catkin-clean-current-workspace()
   "Run `catkin clean' in workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-clean-workspace (ros-current-workspace) ros-current-profile))
 
+;;;###autoload
 (defun ros-catkin-clean-package (package)
   "Clean the ROS PACKAGE."
   (interactive (list (ros-completing-read-packages)))
     (when (y-or-n-p (concat "Do you really want to clean " package "?"))
       (ros-catkin-compile-command "clean -y" package)))
 
+;;;###autoload
 (defun ros-catkin-clean-current-package()
   "If the current buffer is part of a ROS package in the workspace specified by  `ros-current-workspace', clean it."
   (interactive)
   (ros-catkin-clean-package (ros-current-package)))
- 
+
+;;;###autoload
 (defun ros-catkin-test-package(package)
   "Build and run all unittests in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
   (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
 
+;;;###autoload
 (defun ros-catkin-test-current-package()
   "Build and run all unittests in the package the current buffer lies in."
   (interactive)
   (ros-catkin-test-package (ros-current-package)))
 
+;;;###autoload
 (defun ros-catkin-test-workspace(workspace &optional profile)
   "Build and run all unittests in WORKSPACE with profile PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     (ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof)))
 
+;;;###autoload
 (defun ros-test-current-workspace()
   "Build and run all unittests in the workspace with profile specified in `ros-current-workspace' and `ros-current-profile'."
   (interactive)
@@ -282,32 +293,37 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
 (define-key ros-info-mode-map (kbd "C") 'ros-call-service-at-point)
 (define-key ros-info-mode-map (kbd "K") 'ros-kill-node-at-point)
 
-
+;;;###autoload
 (defun ros-msg-show (msg)
   "Prompt for MSG and show structure."
   (interactive (list (ros-generic-completing-read "msg")))
   (ros-generic-show-info "msg" msg))
 
+;;;###autoload
 (defun ros-topic-show (topic)
   "Prompt for TOPIC and show subscribers and publishers."
   (interactive (list (ros-generic-completing-read "topic")))
   (ros-generic-show-info "topic" topic))
-  
+
+;;;###autoload
 (defun ros-service-show (service)
   "Prompt for active SERVICE and show structure."
   (interactive (list (ros-generic-completing-read "service")))
   (ros-generic-show-info "service" service))
 
+;;;###autoload
 (defun ros-srv-show (service)
 "Prompt for (not necessarily active) SERVICE and show structure."
 (interactive (list (ros-generic-completing-read "srv")))
 (ros-generic-show-info "srv" service))
 
+;;;###autoload
 (defun ros-node-show (node)
   "Prompt for NODE and show published and subscribed topics and provided services."
   (interactive (list (ros-generic-completing-read "node")))
   (ros-generic-show-info "node" node))
 
+;;;###autoload
 (defun ros-show-thing-at-point ()
   "Get thing at point and try to describe it."
   (interactive)
@@ -331,6 +347,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
     (when type
       (ros-generic-show-info type thing))))
 
+;;;###autoload
 (defun ros-echo-topic-at-point ()
   "Get thing at point and if it is a topic echo it."
   (interactive)
@@ -339,6 +356,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
         (ros-topic-echo thing)
         (message (format "%s is not an active topic" thing)))))
 
+;;;###autoload
 (defun ros-call-service-at-point ()
   "Get thing at point and if it is a service call it."
   (interactive)
@@ -347,7 +365,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
         (ros-service-call thing)
       (message (format "%s is not an active service" thing)))))
 
-
+;;;###autoload
 (defun ros-kill-node-at-point ()
   "Get thing at point and if it is a node kill it."
   (interactive)
@@ -368,7 +386,7 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
                              (message (format "Killed node %s successfully" node)))))
     (message (format "There is no node %s to kill" node))))
 
-
+;;;###autoload
 (defun ros-topic-echo (topic)
   "Prompt for TOPIC and echo it."
   (interactive (list (ros-generic-completing-read "topic")))
@@ -433,6 +451,7 @@ and the point will be kept at the latest output."
         (insert string)
         (set-marker mark (point))))))
 
+;;;###autoload
 (defun ros-topic-pub-buffer (arg)
   "Publish the mesage defined in the buffer, if ARG is nil publish the message one, otherwise ARG is the rate of the publishing."
   (interactive (list current-prefix-arg))
@@ -459,16 +478,19 @@ and the point will be kept at the latest output."
          (test (string-match "Type: \\(.*\\)\n" info)))
     (match-string 1 info)))
 
+;;;###autoload
 (defun ros-topic-pub (topic)
   "Draft ros message to be published on TOPIC."
   (interactive (list (ros-generic-completing-read "topic")))
   (ros-generate-prototype "msg" (ros-get-topic-type (s-trim-right topic)) topic))
 
+;;;###autoload
 (defun ros-service-call (topic)
   "Draft a service call to be called on TOPIC."
   (interactive (list (ros-generic-completing-read "service")))
   (ros-generate-prototype "srv" (ros-get-service-type topic) topic))
 
+;;;###autoload
 (defun ros-service-call-buffer ()
   "Call the service specified in the buffer."
   (interactive)
@@ -480,12 +502,13 @@ and the point will be kept at the latest output."
     (ros-process-start-process buffer-name (concat "rosservice call " service " " arguments))
     (kill-buffer old-buffer)))
 
+;;;###autoload
 (defun ros-insert-import-msg (message)
   "Prompt for MESSAGE and include it in file."
   (interactive (list (ros-generic-completing-read "msg")))
   (ros-insert-import "msg" message))
 
-
+;;;###autoload
 (defun ros-insert-import-srv (service)
   "Prompt for SERVICE and include it in file."
   (interactive (list (ros-generic-completing-read "srv")))
@@ -567,6 +590,7 @@ the third best another incleude
 and lastly the beginning of the buffer."
   (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min)))
 
+;;;###autoload
 (defun ros-dired-package (package)
   "Open the root of PACKAGE in dired."
   (interactive (list (ros-completing-read-packages)))
@@ -584,6 +608,7 @@ and lastly the beginning of the buffer."
   "Completing read function for loggers in NODE."
     (completing-read "Logger: " (ros-loggers node) nil t))
 
+;;;###autoload
 (defun ros-logger-set-level ()
   "Prompt for NODE and LOGGER and set the logger level."
   (interactive)
@@ -601,6 +626,7 @@ and lastly the beginning of the buffer."
   "Completing read function for ROS parameters."
   (completing-read "Parameter: " (ros-param-list) nil t))
 
+;;;###autoload
 (defun ros-param-set(parameter)
   "Prompt for PARAMETER and set it to a new value."
   (interactive (list (ros-param-completing-read)))
@@ -630,6 +656,7 @@ and lastly the beginning of the buffer."
 This returns the master in the form \"(Name, Value)\""
   (completing-read "ROS—Master: " (mapcar 'car ros-env-saved-ros-masters) nil t nil nil (when ros-env-ros-master (car (rassoc ros-env-ros-master ros-env-saved-ros-masters)))))
 
+;;;###autoload
 (defun ros-env-set-ros-master (new-master)
   "Prompt for NEW-MASTER to set it to `ros-env-ros-master'."
   (interactive  (list (ros-env-completing-read-ros-master)))
@@ -659,6 +686,7 @@ If this is not set return nil"
   "Completing read function for network interfaces."
   (completing-read "Network interface:" (ros-env-network-interfaces) nil t nil nil (when ros-env-network-interface (ros-env-network-interface-description-string ros-env-network-interface (ros-env-ros-ip)))))
 
+;;;###autoload
 (defun ros-env-select-network-interface (interface)
   "Prompt for INTERFACE to set it to `ros-env-network-interface'."
   (interactive (list (ros-env-completing-read-network-interface)))
@@ -676,6 +704,7 @@ If this is not set return nil"
   "Completing read function for host directory."
   (completing-read "Host Directory: " ros-env-saved-host-directory nil nil ros-env-host-directory))
 
+;;;###autoload
 (defun ros-env-select-host-directory(directory)
   "Prompt for DIRECTORY and set it to host directory."
   (interactive (list (ros-env-completing-read-host-directory)))
