@@ -284,9 +284,7 @@ The workspace and the profile are specified in the variables
 (defun ros-generic-get-info (type name)
   "Return info about NAME of type TYPE.
 TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
-  (let ((command))
-    (setq command (cond ((string= type "msg") "show")
-                         (t "info")))
+  (let ((command (cond ((string= type "msg") "show") (t "info"))))
     (ros-shell-command-to-string (format "ros%s %s %s" type command name))))
 
 
@@ -647,9 +645,8 @@ and lastly the beginning of the buffer."
 
 (defun ros-param-read-value (parameter old-value)
   "Prompt for a new value for PARAMETER, the collection is generated based on the OLD-VALUE of PARAMETER."
-  (let ((collection)
-        (bool-collection '("true" "false")))
-    (when (member old-value bool-collection) (setq collection bool-collection))
+  (let* ((bool-collection '("true" "false"))
+         (collection (when (member old-value bool-collection) bool-collection)))
     (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
 
 
