@@ -43,6 +43,10 @@
   :group 'ros-workspace
   :type 'directory)
 
+(defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
+
+(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose the variable `ros-env-host-directory'." :type (list 'directory))
+
 (defvar ros-current-workspace nil "Path to binary/devel directory of current catkin workspace.")
 
 (defun ros-current-workspace ()
@@ -705,10 +709,6 @@ If this is not set return nil"
 (defun ros-process-roscore-running-p ()
   "Return t if there is a roscore running on the system, nil otherwise."
   (not(string= (ros-shell-command-to-string "rosnode list") "ERROR: Unable to communicate with master!")))
-
-(defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
-
-(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose the variable `ros-env-host-directory'." :type (list 'directory))
 
 (defun ros-env-completing-read-host-directory()
   "Completing read function for host directory."
