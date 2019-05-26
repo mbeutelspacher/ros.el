@@ -73,9 +73,10 @@
   "Return the right sourcing command for WORKSPACE. If PROFILE is not nil, this profile is used, otherwise the default profile is used."
   (if (not workspace)
       (format "source /opt/ros/%s/setup%s" ros-distro (ros-setup-file-extension))
-    (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" (ros-setup-file-extension))))
+    (let* ((wspace (shell-quote-argument (expand-file-name workspace)))
+           (source-file (concat (ros-catkin-locate-command wspace "d" profile) "/setup" (ros-setup-file-extension))))
       (unless (file-exists-p source-file)
-        (let* ((extended-devel-space (ros-catkin-extended-devel-space workspace profile))
+        (let* ((extended-devel-space (ros-catkin-extended-devel-space wspace profile))
               (extended-source-file (concat extended-devel-space "/setup" (ros-setup-file-extension))))
           (message extended-source-file)
           (if (and (file-exists-p extended-source-file) (y-or-n-p (concat source-file " does not exist, do you want to source " extended-source-file" instead?")))
