@@ -1,4 +1,4 @@
-;;; ros.el --- package to interact with and write code for ROS systems
+;;; ros.el --- Package to interact with and write code for ROS systems
 
 ;; Copyright (C) 2019 Max Beutelspacher
 
@@ -43,6 +43,10 @@
   :group 'ros-workspace
   :type 'directory)
 
+(defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
+
+(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose the variable `ros-env-host-directory'." :type (list 'directory))
+
 (defvar ros-current-workspace nil "Path to binary/devel directory of current catkin workspace.")
 
 (defun ros-current-workspace ()
@@ -80,8 +84,8 @@
       (concat "source " source-file))))
 
 (defun ros-catkin-extended-devel-space (workspace &optional profile)
-  "Return the path to the devel space that WORKSPACE with optinal PROFILE or default profile extends."
-  (let ((profile-flag (if profile (concat "--profile " profile) "")))
+  "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
+  (let ((profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
 
@@ -115,7 +119,7 @@ The FLAG can be:
 \"b\" : Get the path to the build space
 \"d\" : Get the path to the devel space
 \"i\" : Get the path to the install space"
-  (let ((profile-str (if profile (format "--profile %s" profile) "")))
+  (let ((profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
     (if (member flag '("s" "b" "d" "i"))
         (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))
       (error "Catkin locate flag can only be s,b,d or i"))))
@@ -280,9 +284,7 @@ The workspace and the profile are specified in the variables
 (defun ros-generic-get-info (type name)
   "Return info about NAME of type TYPE.
 TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
-  (let ((command))
-    (setq command (cond ((string= type "msg") "show")
-                         (t "info")))
+  (let ((command (cond ((string= type "msg") "show") (t "info"))))
     (ros-shell-command-to-string (format "ros%s %s %s" type command name))))
 
 
@@ -389,11 +391,10 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (if (member node (ros-generic-list "node"))
       (when (yes-or-no-p (format "Do you really want to kill node %s"
                                  node))
-                         (progn
-                           (ros-shell-command-to-string (format "rosnode kill %s" node))
-                           (if (member node (ros-generic-list "node"))
-                               (message (format "Failed to kill node %s" node))
-                             (message (format "Killed node %s successfully" node)))))
+          (ros-shell-command-to-string (format "rosnode kill %s" node))
+          (if (member node (ros-generic-list "node"))
+              (message (format "Failed to kill node %s" node))
+            (message (format "Killed node %s successfully" node))))
     (message (format "There is no node %s to kill" node))))
 
 ;;;###autoload
@@ -415,7 +416,7 @@ Additionally the current workspace is sourced."
 
 (defun ros-info-get-section ()
   "Get the section of ros info of the symbol at point.
-These sections help to identitfy the type of the symbol at point e.g. Topic, Node etc."
+These sections help to identify the type of the symbol at point e.g. Topic, Node etc."
   (save-excursion
     (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:\\|Type:"))
                  (end (if start (re-search-forward ":"))))
@@ -535,28 +536,26 @@ and the point will be kept at the latest output."
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
-      (progn
-        (when (not (ros-import-is-included-python-p type package name))
-            (if (ros-import-search-same-package-import-python type package)
-                (progn
-                  (goto-char (ros-import-search-same-package-import-python type package))
-                  (move-end-of-line nil)
-                  (insert (format ", %s" name)))
-              (progn
-                (goto-char (ros-insert-import-python-best-import-location type))
-                (end-of-line)
-                (newline-and-indent)
-                (insert (format "%s %s" start-import-statement name))))))))
+    (when (not (ros-import-is-included-python-p type package name))
+      (if (ros-import-search-same-package-import-python type package)
+          (progn
+            (goto-char (ros-import-search-same-package-import-python type package))
+            (move-end-of-line nil)
+            (insert (format ", %s" name)))
+        (goto-char (ros-insert-import-python-best-import-location type))
+        (end-of-line)
+        (newline-and-indent)
+        (insert (format "%s %s" start-import-statement name))))))
 
 (defun ros-insert-import-python-best-import-location (type)
-    "Return the best location for an python import of TYPE.
+  "Return the best location for a python import of TYPE.
 TYPE can be either msg or srv.
 The best location would be another import of this TYPE,
 the second best another import and lastly the beginning of the buffer."
-    (or (ros-string-in-buffer-p (format "from .*\.%s import .*" type)) (ros-string-in-buffer-p "import") (point-min)))
+  (or (ros-string-in-buffer (format "from .*\.%s import .*" type)) (ros-string-in-buffer "import") (point-min)))
 
-(defun ros-string-in-buffer-p (string)
-  "Return t if STRING is in the current buffer, nil otherwise."
+(defun ros-string-in-buffer (string)
+  "Return point where STRING is in the current buffer, nil otherwise."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward string nil t)))
@@ -596,9 +595,9 @@ Return nil if there is None and the point of the first import if there is one."
 TYPE can be either msg or srv.
 The best location would be another import of the same PACKAGE,
 the second best another import of this TYPE
-the third best another incleude
+the third best another include
 and lastly the beginning of the buffer."
-  (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min)))
+  (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
 
 ;;;###autoload
 (defun ros-dired-package (package)
@@ -645,10 +644,9 @@ and lastly the beginning of the buffer."
     (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
 
 (defun ros-param-read-value (parameter old-value)
-  "Prompt for a new value for PARAMETER, the collection is generted based on the OLD-VALUE of PARAMETER."
-  (let ((collection)
-        (bool-collection '("true" "false")))
-    (when (member old-value bool-collection) (setq collection bool-collection))
+  "Prompt for a new value for PARAMETER, the collection is generated based on the OLD-VALUE of PARAMETER."
+  (let* ((bool-collection '("true" "false"))
+         (collection (when (member old-value bool-collection) bool-collection)))
     (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
 
 
@@ -705,10 +703,6 @@ If this is not set return nil"
 (defun ros-process-roscore-running-p ()
   "Return t if there is a roscore running on the system, nil otherwise."
   (not(string= (ros-shell-command-to-string "rosnode list") "ERROR: Unable to communicate with master!")))
-
-(defcustom ros-env-host-directory "~/" "Directory from which all ros shell commands should be executed.":type 'directory)
-
-(defcustom ros-env-saved-host-directory '("~/") "List of directories from which to choose the variable `ros-env-host-directory'." :type (list 'directory))
 
 (defun ros-env-completing-read-host-directory()
   "Completing read function for host directory."
