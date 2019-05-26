@@ -85,7 +85,7 @@
 
 (defun ros-catkin-extended-devel-space (workspace &optional profile)
   "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
-  (let ((profile-flag (if profile (concat "--profile " profile) "")))
+  (let ((profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
 
@@ -119,7 +119,7 @@ The FLAG can be:
 \"b\" : Get the path to the build space
 \"d\" : Get the path to the devel space
 \"i\" : Get the path to the install space"
-  (let ((profile-str (if profile (format "--profile %s" profile) "")))
+  (let ((profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
     (if (member flag '("s" "b" "d" "i"))
         (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))
       (error "Catkin locate flag can only be s,b,d or i"))))
