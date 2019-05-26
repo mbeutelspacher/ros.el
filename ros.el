@@ -393,11 +393,10 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (if (member node (ros-generic-list "node"))
       (when (yes-or-no-p (format "Do you really want to kill node %s"
                                  node))
-                         (progn
-                           (ros-shell-command-to-string (format "rosnode kill %s" node))
-                           (if (member node (ros-generic-list "node"))
-                               (message (format "Failed to kill node %s" node))
-                             (message (format "Killed node %s successfully" node)))))
+          (ros-shell-command-to-string (format "rosnode kill %s" node))
+          (if (member node (ros-generic-list "node"))
+              (message (format "Failed to kill node %s" node))
+            (message (format "Killed node %s successfully" node))))
     (message (format "There is no node %s to kill" node))))
 
 ;;;###autoload
@@ -539,18 +538,16 @@ and the point will be kept at the latest output."
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
-      (progn
-        (when (not (ros-import-is-included-python-p type package name))
-            (if (ros-import-search-same-package-import-python type package)
-                (progn
-                  (goto-char (ros-import-search-same-package-import-python type package))
-                  (move-end-of-line nil)
-                  (insert (format ", %s" name)))
-              (progn
-                (goto-char (ros-insert-import-python-best-import-location type))
-                (end-of-line)
-                (newline-and-indent)
-                (insert (format "%s %s" start-import-statement name))))))))
+    (when (not (ros-import-is-included-python-p type package name))
+      (if (ros-import-search-same-package-import-python type package)
+          (progn
+            (goto-char (ros-import-search-same-package-import-python type package))
+            (move-end-of-line nil)
+            (insert (format ", %s" name)))
+        (goto-char (ros-insert-import-python-best-import-location type))
+        (end-of-line)
+        (newline-and-indent)
+        (insert (format "%s %s" start-import-statement name))))))
 
 (defun ros-insert-import-python-best-import-location (type)
     "Return the best location for an python import of TYPE.
