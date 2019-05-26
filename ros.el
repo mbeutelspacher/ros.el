@@ -84,7 +84,7 @@
       (concat "source " source-file))))
 
 (defun ros-catkin-extended-devel-space (workspace &optional profile)
-  "Return the path to the devel space that WORKSPACE with optinal PROFILE or default profile extends."
+  "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
   (let ((profile-flag (if profile (concat "--profile " profile) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
@@ -418,7 +418,7 @@ Additionally the current workspace is sourced."
 
 (defun ros-info-get-section ()
   "Get the section of ros info of the symbol at point.
-These sections help to identitfy the type of the symbol at point e.g. Topic, Node etc."
+These sections help to identify the type of the symbol at point e.g. Topic, Node etc."
   (save-excursion
     (let* ((start (re-search-backward "Services:\\|Subscriptions:\\|Publications:\\|Publishers:\\|Subscribers:\\|Node:\\|Type:"))
                  (end (if start (re-search-forward ":"))))
@@ -550,7 +550,7 @@ and the point will be kept at the latest output."
         (insert (format "%s %s" start-import-statement name))))))
 
 (defun ros-insert-import-python-best-import-location (type)
-    "Return the best location for an python import of TYPE.
+  "Return the best location for a python import of TYPE.
 TYPE can be either msg or srv.
 The best location would be another import of this TYPE,
 the second best another import and lastly the beginning of the buffer."
@@ -597,7 +597,7 @@ Return nil if there is None and the point of the first import if there is one."
 TYPE can be either msg or srv.
 The best location would be another import of the same PACKAGE,
 the second best another import of this TYPE
-the third best another incleude
+the third best another include
 and lastly the beginning of the buffer."
   (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
 
@@ -646,7 +646,7 @@ and lastly the beginning of the buffer."
     (ros-shell-command-to-string (concat "rosparam set " parameter " " new-value))))
 
 (defun ros-param-read-value (parameter old-value)
-  "Prompt for a new value for PARAMETER, the collection is generted based on the OLD-VALUE of PARAMETER."
+  "Prompt for a new value for PARAMETER, the collection is generated based on the OLD-VALUE of PARAMETER."
   (let ((collection)
         (bool-collection '("true" "false")))
     (when (member old-value bool-collection) (setq collection bool-collection))
