@@ -73,9 +73,10 @@
   "Return the right sourcing command for WORKSPACE. If PROFILE is not nil, this profile is used, otherwise the default profile is used."
   (if (not workspace)
       (format "source /opt/ros/%s/setup%s" ros-distro (ros-setup-file-extension))
-    (let ((source-file (concat (ros-catkin-locate-command workspace "d" profile) "/setup" (ros-setup-file-extension))))
+    (let* ((wspace (shell-quote-argument (expand-file-name workspace)))
+           (source-file (concat (ros-catkin-locate-command wspace "d" profile) "/setup" (ros-setup-file-extension))))
       (unless (file-exists-p source-file)
-        (let* ((extended-devel-space (ros-catkin-extended-devel-space workspace profile))
+        (let* ((extended-devel-space (ros-catkin-extended-devel-space wspace profile))
               (extended-source-file (concat extended-devel-space "/setup" (ros-setup-file-extension))))
           (message extended-source-file)
           (if (and (file-exists-p extended-source-file) (y-or-n-p (concat source-file " does not exist, do you want to source " extended-source-file" instead?")))
@@ -85,7 +86,8 @@
 
 (defun ros-catkin-extended-devel-space (workspace &optional profile)
   "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
-  (let ((profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
+  (let ((workspace (shell-quote-argument (expand-file-name workspace)))
+        (profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
 
@@ -119,7 +121,8 @@ The FLAG can be:
 \"b\" : Get the path to the build space
 \"d\" : Get the path to the devel space
 \"i\" : Get the path to the install space"
-  (let ((profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
+  (let ((workspace (shell-quote-argument (expand-file-name workspace)))
+        (profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
     (if (member flag '("s" "b" "d" "i"))
         (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))
       (error "Catkin locate flag can only be s,b,d or i"))))
@@ -139,12 +142,12 @@ These consists of setting the ROS_MASTER_URI, the ROS_IP
 and sourcing WORKSPACE with PROFILE.
 If PROFILE and WORKSPACE are not provided use the settings
 in the variables `ros-current-workspace' and `ros-current-profile'."
-  (let ((wspace (if workspace workspace (ros-current-workspace)))
+  (let ((workspace (if workspace workspace (ros-current-workspace)))
          (prof (if profile profile ros-current-profile))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
         (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
         )
-    (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command wspace prof) cmd)))
+    (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command workspace prof) cmd)))
 
 (defun ros-shell-command-to-string (cmd &optional workspace profile)
   "Run CMD after sourcing workspace and return output as a string.
