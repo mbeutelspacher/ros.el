@@ -1,4 +1,4 @@
-;;; ros.el --- package to interact with and write code for ROS systems
+;;; ros.el --- Package to interact with and write code for ROS systems
 
 ;; Copyright (C) 2019 Max Beutelspacher
 
