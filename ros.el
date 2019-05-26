@@ -554,10 +554,10 @@ and the point will be kept at the latest output."
 TYPE can be either msg or srv.
 The best location would be another import of this TYPE,
 the second best another import and lastly the beginning of the buffer."
-    (or (ros-string-in-buffer-p (format "from .*\.%s import .*" type)) (ros-string-in-buffer-p "import") (point-min)))
+  (or (ros-string-in-buffer (format "from .*\.%s import .*" type)) (ros-string-in-buffer "import") (point-min)))
 
-(defun ros-string-in-buffer-p (string)
-  "Return t if STRING is in the current buffer, nil otherwise."
+(defun ros-string-in-buffer (string)
+  "Return point where STRING is in the current buffer, nil otherwise."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward string nil t)))
@@ -599,7 +599,7 @@ The best location would be another import of the same PACKAGE,
 the second best another import of this TYPE
 the third best another incleude
 and lastly the beginning of the buffer."
-  (or (ros-string-in-buffer-p (format "#include <%s/.*>" package)) (ros-string-in-buffer-p (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer-p "#include") (point-min)))
+  (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
 
 ;;;###autoload
 (defun ros-dired-package (package)
