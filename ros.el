@@ -1,4 +1,4 @@
-;;; ros.el --- Package to interact with and write code for ROS systems
+;;; ros.el --- Package to interact with and write code for ROS systems -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2019 Max Beutelspacher
 
@@ -184,7 +184,7 @@ If the current buffer does not lie in a ROS package return nil."
   "Run catkin CMD after sourcing WORKSPACE with optional PROFILE.
 If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
-         (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
+         (compilation-buffer-name-function (lambda (_) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
          (add-cmd (if additional_cmd additional_cmd "true")))
     (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
@@ -488,8 +488,8 @@ and the point will be kept at the latest output."
 
 (defun ros-get-topic-service-type (type topic)
   "Get message or service (decided by TYPE) type of TOPIC."
-  (let* ((info (ros-generic-get-info type topic))
-         (test (string-match "Type: \\(.*\\)\n" info)))
+  (let* ((info (ros-generic-get-info type topic)))
+    (string-match "Type: \\(.*\\)\n" info)
     (match-string 1 info)))
 
 ;;;###autoload
@@ -509,7 +509,6 @@ and the point will be kept at the latest output."
   "Call the service specified in the buffer."
   (interactive)
   (let* ((service (buffer-name))
-         (type (ros-get-service-type service))
          (arguments (string-trim (s-trim (buffer-string)) "\"" "\""))
          (buffer-name (concat "*rosservice call " service "*"))
          (old-buffer (current-buffer)))
