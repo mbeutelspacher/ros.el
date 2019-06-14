@@ -10,6 +10,7 @@ which allows for fuzzy matching using packages like =helm= or =ivy=.
 Most of these should be standard in every ROS distribution. Information how to install =catkin-build-tools= can be found [[https://catkin-tools.readthedocs.io/en/latest/installing.html][here]].
 
 ** Setup 
+Install the package from melpa using =M-x package-install RET ros RET=.
 In order to use =ros.el= one should set the following variables:
 #+begin_src emacs-lisp
 (setq ros-workspaces '("PATH/TO/ROS/WORKSPACE", "PATH/TO/OTHER/WORKSPACE"))
