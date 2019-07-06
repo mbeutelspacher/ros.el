@@ -1,3 +1,4 @@
+[[https://melpa.org/#/ros][file:https://melpa.org/packages/ros-badge.svg]]
 * ros.el
 =ros.el= is an emacs package which should ease the interaction with ROS nodes as well as help developing software for ROS systems.
 [[https://www.ros.org/][ROS]] is the *R* obot *O* perating *S* ystem and focuses on exchanging messages between nodes. Since the systems can become quite complex,
