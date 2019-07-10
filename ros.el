@@ -1,4 +1,4 @@
-;;; ros.el --- Package to interact with and write code for ROS systems
+;;; ros.el --- Package to interact with and write code for ROS systems -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2019 Max Beutelspacher
 
@@ -86,7 +86,8 @@
 
 (defun ros-catkin-extended-devel-space (workspace &optional profile)
   "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
-  (let ((profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
+  (let ((workspace (shell-quote-argument (expand-file-name workspace)))
+        (profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
     (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
   )
 
@@ -120,7 +121,8 @@ The FLAG can be:
 \"b\" : Get the path to the build space
 \"d\" : Get the path to the devel space
 \"i\" : Get the path to the install space"
-  (let ((profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
+  (let ((workspace (shell-quote-argument (expand-file-name workspace)))
+        (profile-str (if profile (format "--profile %s" (shell-quote-argument profile)) "")))
     (if (member flag '("s" "b" "d" "i"))
         (s-trim(shell-command-to-string (format "cd %s && catkin locate -%s %s" workspace flag profile-str)))
       (error "Catkin locate flag can only be s,b,d or i"))))
@@ -140,12 +142,12 @@ These consists of setting the ROS_MASTER_URI, the ROS_IP
 and sourcing WORKSPACE with PROFILE.
 If PROFILE and WORKSPACE are not provided use the settings
 in the variables `ros-current-workspace' and `ros-current-profile'."
-  (let ((wspace (if workspace workspace (ros-current-workspace)))
+  (let ((workspace (if workspace workspace (ros-current-workspace)))
          (prof (if profile profile ros-current-profile))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
         (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
         )
-    (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command wspace prof) cmd)))
+    (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command workspace prof) cmd)))
 
 (defun ros-shell-command-to-string (cmd &optional workspace profile)
   "Run CMD after sourcing workspace and return output as a string.
@@ -182,7 +184,7 @@ If the current buffer does not lie in a ROS package return nil."
   "Run catkin CMD after sourcing WORKSPACE with optional PROFILE.
 If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
-         (compilation-buffer-name-function (lambda (major-mode-name) "*catkin*"))
+         (compilation-buffer-name-function (lambda (_) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
          (add-cmd (if additional_cmd additional_cmd "true")))
     (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
@@ -486,8 +488,8 @@ and the point will be kept at the latest output."
 
 (defun ros-get-topic-service-type (type topic)
   "Get message or service (decided by TYPE) type of TOPIC."
-  (let* ((info (ros-generic-get-info type topic))
-         (test (string-match "Type: \\(.*\\)\n" info)))
+  (let* ((info (ros-generic-get-info type topic)))
+    (string-match "Type: \\(.*\\)\n" info)
     (match-string 1 info)))
 
 ;;;###autoload
@@ -507,7 +509,6 @@ and the point will be kept at the latest output."
   "Call the service specified in the buffer."
   (interactive)
   (let* ((service (buffer-name))
-         (type (ros-get-service-type service))
          (arguments (string-trim (s-trim (buffer-string)) "\"" "\""))
          (buffer-name (concat "*rosservice call " service "*"))
          (old-buffer (current-buffer)))
