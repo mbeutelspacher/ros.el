@@ -688,7 +688,7 @@ and lastly the beginning of the buffer."
 
 (defun ros-dynamic-reconfigure-read-new-value (parameter-name parameter-table)
   "Read new value for PARAMETER-NAME in hashtable PARAMETER-TABLE."
-  (let* ((bool-collection '("true" "false"))
+  (let* ((bool-collection '("True" "False"))
          (current-value (gethash parameter-name parameter-table))
          (collection (when (member current-value bool-collection) bool-collection)))
     (completing-read (format "%s: " parameter-name) collection nil collection (unless collection current-value) nil (when collection current-value))))
