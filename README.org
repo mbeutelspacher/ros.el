@@ -46,6 +46,7 @@ This makes it possible to explore a ROS systems in an easy way.
 There are also direct commands to echo a topic (=ros-topic-echo=), call a service (=ros-service-call=)
 and publish to a topic (=ros-topic-pub=). For the latter two a buffer will be created
 with a prototype of the service request or the message which can be submitted using the key combination =C-c C-c=.
+For topics is also possible to filter by message type using =ros-topic-(show|echo|pub)-filtered=.
 *** Changing ROS parameter
 Use =ros-param-set= to read and write ROS-parameters.
 *** Include msg and srv header in C++ and Python modes
