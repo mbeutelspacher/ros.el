@@ -321,6 +321,12 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
   (ros-generic-show-info "topic" topic))
 
 ;;;###autoload
+(defun ros-topic-show-filtered (topic)
+  "Prompt for TOPIC filtered by type and show subscribers and publishers."
+  (interactive (list (ros-topic-completing-read-topic-filtered)))
+  (ros-topic-show topic))
+
+;;;###autoload
 (defun ros-service-show (service)
   "Prompt for active SERVICE and show structure."
   (interactive (list (ros-generic-completing-read "service")))
@@ -408,6 +414,12 @@ TYPE can be any of the following \"node\", \"topic\", \"service\" \"msg\""
          (buffer-name (concat "*rostopic:" topic-full-name "*")))
     (ros-process-start-process buffer-name (concat "rostopic echo " topic-full-name))))
 
+;;;###autoload
+(defun ros-topic-echo-filtered (topic)
+  "Prompt for TOPIC filtered by type and echo it."
+  (interactive (list (ros-topic-completing-read-topic-filtered)))
+  (ros-topic-echo topic))
+
 (defun ros-process-start-process (buffer-name cmd)
   "Run CMD in buffer BUFFER-NAME.
 In this environment the environment variables `ROS_MASTER_URI'
@@ -488,15 +500,42 @@ and the point will be kept at the latest output."
 
 (defun ros-get-topic-service-type (type topic)
   "Get message or service (decided by TYPE) type of TOPIC."
-  (let* ((info (ros-generic-get-info type topic)))
-    (string-match "Type: \\(.*\\)\n" info)
-    (match-string 1 info)))
+  (ros-shell-command-to-string (format "ros%s type %s" type topic)))
+
+(defun ros-topic-list-by-type ()
+  "Create a list of topic-type pairs."
+  (let* ((output (ros-shell-command-to-string (format "rostopic list -v")))
+         (matches (s-match-strings-all "/\\(.*\\) \\[\\(.*\\)]*\]" output)))
+    (mapcar 'cdr matches)))
+
+(defun ros-topic-completing-read-type (topic-type-pairs)
+  "Completing read function for types in TOPIC-TYPE-PAIRS."
+  (completing-read "Type:" (delq nil(delete-dups (mapcar 'cadr topic-type-pairs))) nil t))
+
+(defun ros-topic-filter-by-type (type topic-type-pairs)
+  "Return all topics in TOPIC-TYPE-PAIRS which have type TYPE."
+  (delq nil (delete-dups (mapcar (lambda (x) (when (string= (cadr x) type) (car x))) topic-type-pairs))))
+
+(defun ros-topic-completing-read-topic-filtered-by-type(type topic-type-pairs)
+  "Completing read function for all topics in TOPIC-TYPE-PAIRS which have type TYPE."
+  (completing-read "Topic: "  (ros-topic-filter-by-type type topic-type-pairs) nil t))
+
+(defun ros-topic-completing-read-topic-filtered ()
+  "Completing read function for topics filtered by type."
+  (let ((topic-type-pairs (ros-topic-list-by-type)))
+    (ros-topic-completing-read-topic-filtered-by-type (ros-topic-completing-read-type topic-type-pairs) topic-type-pairs)))
 
 ;;;###autoload
 (defun ros-topic-pub (topic)
   "Draft ros message to be published on TOPIC."
   (interactive (list (ros-generic-completing-read "topic")))
   (ros-generate-prototype "msg" (ros-get-topic-type (s-trim-right topic)) topic))
+
+;;;###autoload
+(defun ros-topic-pub-filtered (topic)
+  "Draft ros message to be published on TOPIC which is filtered by type."
+  (interactive (list (ros-topic-completing-read-topic-filtered)))
+  (ros-topic-pub topic))
 
 ;;;###autoload
 (defun ros-service-call (topic)
