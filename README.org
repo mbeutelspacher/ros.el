@@ -49,7 +49,7 @@ and publish to a topic (=ros-topic-pub=). For the latter two a buffer will be cr
 with a prototype of the service request or the message which can be submitted using the key combination =C-c C-c=.
 For topics is also possible to filter by message type using =ros-topic-(show|echo|pub)-filtered=.
 *** Changing ROS parameter
-Use =ros-param-set= to read and write ROS-parameters.
+Use =ros-param-set=  and =ros-dynamic-reconfigure-set-param= to read and write ROS-parameters.
 *** Include msg and srv header in C++ and Python modes
 =ros-insert-import-msg= and =ros-insert-import-srv= will prompt for a message or service type and then check if it
 is already included in the current C++ or Python buffer. If that is not the case it will insert the approriate import/include.

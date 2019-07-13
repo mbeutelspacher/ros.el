@@ -33,6 +33,8 @@
 (require 'dired)
 (require 's)
 (require 'subr-x)
+(require 'json)
+
 
 (defgroup ros nil "Related to the Robot Operating System." :group 'external)
 
@@ -690,6 +692,54 @@ and lastly the beginning of the buffer."
          (collection (when (member old-value bool-collection) bool-collection)))
     (completing-read (format "%s: " parameter) collection nil collection (unless collection old-value) nil (when collection old-value))))
 
+
+(defun ros-dynamic-reconfigure-cmd(cmd)
+  "Prepend CMD with the call to dynamic reconfigure and return the command as string."
+  (concat "rosrun dynamic_reconfigure dynparam " cmd))
+
+(defun ros-dynamic-reconfigure-list-nodes()
+  "List of ROS dynamic reconfigure nodes."
+  (ros-shell-output-as-list (ros-dynamic-reconfigure-cmd "list")))
+
+(defun ros-dynamic-reconfigure-completing-read-node()
+  "Completing read function for dynamic reconfigure nodes."
+  (completing-read "Node:" (ros-dynamic-reconfigure-list-nodes) nil t))
+
+(defun ros-dynamic-reconfigure-list-params(node)
+  "List of dynamicly reconfigurable parameters in NODE."
+  (ros-dynamic-reconfigure-parse-parameter-value-pairs (ros-shell-command-to-string (ros-dynamic-reconfigure-cmd (concat "get " node)))))
+
+(defun ros-dynamic-reconfigure-clean-dictionary-and-remove-subgroups(dict)
+    "Remove the surrounding braces of the DICT and remove all subgroups."
+    (replace-regexp-in-string "[^,]*{[^}]*}" "" (s-replace "}" ""(s-replace  "’" ""  (substring dict 1 -1)) )))
+
+(defun ros-dynamic-reconfigure-parse-parameter-value-pairs(dict)
+  "Parse DICT string to get a hashtable of parameter names and values."
+  (let* ((parameter_pairs (split-string-and-unquote (ros-dynamic-reconfigure-clean-dictionary-and-remove-subgroups dict) ","))
+         (params #s(hash-table size 100 test equal data ())))
+    (dolist (elem parameter_pairs params)
+      (let ((pair (split-string-and-unquote elem ":")))
+        (puthash (string-trim(car pair) "[ \t\n\r\']+"  "[ \t\n\r\']+") (string-trim(car (cdr pair))) params)))))
+
+(defun ros-dynamic-reconfigure-completing-read-parameter(params)
+  "Completing read function for parameters in hashtable PARAMS."
+  (completing-read "Parameter:" (hash-table-keys params) nil t))
+
+(defun ros-dynamic-reconfigure-read-new-value (parameter-name parameter-table)
+  "Read new value for PARAMETER-NAME in hashtable PARAMETER-TABLE."
+  (let* ((bool-collection '("True" "False"))
+         (current-value (gethash parameter-name parameter-table))
+         (collection (when (member current-value bool-collection) bool-collection)))
+    (completing-read (format "%s: " parameter-name) collection nil collection (unless collection current-value) nil (when collection current-value))))
+
+;;;###autoload
+(defun ros-dynamic-reconfigure-set-param(node)
+  "Dynamically reconfigure a parametern in NODE."
+  (interactive (list (ros-dynamic-reconfigure-completing-read-node)))
+  (let* ((parameter-table (ros-dynamic-reconfigure-list-params node))
+         (parameter-name (ros-dynamic-reconfigure-completing-read-parameter  parameter-table))
+         (new-value (ros-dynamic-reconfigure-read-new-value parameter-name parameter-table)))
+    (ros-shell-command-to-string (ros-dynamic-reconfigure-cmd (format "set %s %s %s" node parameter-name new-value)))))
 
 (defvar ros-env-ros-master nil)
 (defvar ros-env-saved-ros-masters '(("default" . nil)))
