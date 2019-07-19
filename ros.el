@@ -174,7 +174,14 @@ The WORKSPACE or if nil the one returned by the function
   "Return the name of the ROS package the current buffer lies in.
 If the current buffer does not lie in a ROS package return nil."
   (let* ((package-path (locate-dominating-file (ros-current-directory) "package.xml")))
-    (when package-path (file-name-nondirectory(directory-file-name(file-name-directory package-path))))))
+    (when package-path (ros-parse-package-xml-for-package (concat package-path "package.xml")))))
+
+(defun ros-parse-package-xml-for-package (path)
+  "Parse package.xml in PATH for package name."
+  (with-temp-buffer
+    (insert-file-contents path)
+    (string-match  "<name>\\(.*\\)</name>" (buffer-string))
+    (match-string 1 (buffer-string))))
 
 (defun ros-current-directory ()
   "Return the directory of the current buffer or the current dired directory."
