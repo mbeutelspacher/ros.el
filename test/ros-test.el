@@ -158,6 +158,12 @@
     )
   )
 
+(ert-deftest ros-parse-package-xml-for-package-name-returns-correct-name()
+  (let ((path "/opt/ros/melodic/share/geometry_msgs/package.xml"))
+    (should (string= (ros-parse-package-xml-for-package path) "geometry_msgs"))
+    )
+  )
+
 
 
 (provide 'ros-test)
