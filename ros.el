@@ -296,6 +296,7 @@ The workspace and the profile are specified in the variables
   "Completing read function for test code files in PACKAGE."
   (completing-read "Test: " (ros-catkin-test-code-files-in-package package) nil t))
 
+;;;###autoload
 (defun ros-catkin-test-file-in-package(package)
   "Build and run all unittests of a prompted file in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
@@ -317,11 +318,13 @@ The workspace and the profile are specified in the variables
 If REGEXP is not nil filter tests for REGEXP."
   (ros-catkin-compile-command "build" (concat package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rosrun " package " " test (when regexp (concat " --gtest_filter=" regexp)))))
 
+;;;###autoload
 (defun ros-catkin-test-file-in-current-package ()
   "Prompt for test file in current package and build and run this test file."
   (interactive)
   (ros-catkin-test-file-in-package (ros-current-package)))
 
+;;;###autoload
 (defun ros-catkin-run-current-test-file ()
   "Build and run the test file in the current buffer."
   (interactive)
@@ -331,6 +334,7 @@ If REGEXP is not nil filter tests for REGEXP."
         (ros-catkin-test-file-in-package2 package test-candidate)
         (message "Current file is not a test file"))))
 
+;;;###autoload
 (defun ros-catkin-test-at-point()
   "If current file is a gtest test file, build and run the test at point."
   (interactive)
