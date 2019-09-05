@@ -189,14 +189,14 @@ If the current buffer does not lie in a ROS package return nil."
   "Return the directory of the current buffer or the current dired directory."
   (if (buffer-file-name) (file-name-directory (buffer-file-name)) (dired-current-directory)))
 
-(defun ros-catkin-compile-command (cmd workspace &optional profile additional_cmd)
-  "Run catkin CMD after sourcing WORKSPACE with optional PROFILE.
+(defun ros-catkin-compile-command (verb args workspace &optional profile additional_cmd)
+  "Run catkin VERB with ARGS  after sourcing WORKSPACE with optional PROFILE.
 If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
          (compilation-buffer-name-function (lambda (_) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
          (add-cmd (if additional_cmd additional_cmd "true")))
-    (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s && %s" cmd profile-flag add-cmd) workspace profile))))
+    (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s %s && %s" verb profile-flag args add-cmd) workspace profile))))
 
 ;;;###autoload
 (defun ros-catkin-build-workspace(workspace &optional profile)
@@ -204,7 +204,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
 If called interactively prompt for WORKSPACE and PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    (ros-catkin-compile-command "build" workspace prof)))
+    (ros-catkin-compile-command "build" "" workspace prof)))
 
 ;;;###autoload
 (defun ros-catkin-build-current-workspace()
@@ -219,7 +219,7 @@ The packages will be built in the workspace specified
 in the variable `ros-current-workspace' and with the profile
 specified in the variable`ros-current-profile'."
   (interactive (list (ros-completing-read-packages)))
-  (ros-catkin-compile-command (format "build %s" package) (ros-current-workspace) ros-current-profile))
+  (ros-catkin-compile-command "build" package (ros-current-workspace) ros-current-profile))
 
 ;;;###autoload
 (defun ros-catkin-build-current-package ()
@@ -233,7 +233,7 @@ specified in the variable`ros-current-profile'."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
     (when (y-or-n-p (concat "Do you really want to clean " workspace " %s with profile " prof " ?"))
-        (ros-catkin-compile-command "clean -y" workspace profile))))
+        (ros-catkin-compile-command "clean" "-y" workspace profile))))
 
 ;;;###autoload
 (defun ros-catkin-clean-current-workspace()
@@ -246,7 +246,7 @@ specified in the variable`ros-current-profile'."
   "Clean the ROS PACKAGE."
   (interactive (list (ros-completing-read-packages)))
     (when (y-or-n-p (concat "Do you really want to clean " package "?"))
-      (ros-catkin-compile-command "clean -y" package)))
+      (ros-catkin-compile-command "clean" (concat "-y " package) (ros-current-workspace) ros-current-profile)))
 
 ;;;###autoload
 (defun ros-catkin-clean-current-package()
@@ -258,7 +258,7 @@ specified in the variable`ros-current-profile'."
 (defun ros-catkin-test-package(package)
   "Build and run all unittests in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
-  (ros-catkin-compile-command (concat "run_tests --no-deps " package) (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
+  (ros-catkin-compile-command "build" (concat package " --catkin-make-args run_tests") (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
 
 ;;;###autoload
 (defun ros-catkin-test-current-package()
@@ -271,15 +271,78 @@ specified in the variable`ros-current-profile'."
   "Build and run all unittests in WORKSPACE with profile PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    (ros-catkin-compile-command "build --catkin-make-args run_tests" workspace prof)))
+    (ros-catkin-compile-command "build" "--catkin-make-args run_tests" workspace prof)))
 
 ;;;###autoload
-(defun ros-test-current-workspace()
+(defun ros-catkin-test-current-workspace()
   "Build and run all unittests in the current workspace.
 The workspace and the profile are specified in the variables
 `ros-current-workspace' and `ros-current-profile'."
   (interactive)
   (ros-catkin-test-workspace (ros-current-workspace) ros-current-profile))
+
+(defun ros-catkin-test-files-in-package (package regexp)
+  "List test files matching REGEXP in the test directory of PACKAGE."
+  (let* ((test-directory (concat (file-name-as-directory (ros-get-package-path package)) "test"))
+         (test-files (directory-files test-directory nil regexp)))
+    (mapcar 'file-name-sans-extension test-files)))
+
+
+(defun ros-catkin-test-code-files-in-package (package)
+  "List test files matching *.cpp and *.py in test directory of PACKAGE."
+  (ros-catkin-test-files-in-package package  ".*test.*\\\(\\\.cpp\\\|\\\.py\\\)"))
+
+(defun ros-catkin-completing-read-test-file-in-package(package)
+  "Completing read function for test code files in PACKAGE."
+  (completing-read "Test: " (ros-catkin-test-code-files-in-package package) nil t))
+
+(defun ros-catkin-test-file-in-package(package)
+  "Build and run all unittests of a prompted file in PACKAGE."
+  (interactive (list (ros-completing-read-packages)))
+  (let ((test-file (ros-catkin-completing-read-test-file-in-package package)))
+    (ros-catkin-test-file-in-package2 package test-file)))
+
+
+(defun ros-catkin-test-file-in-package2 (package test)
+  "Build and run all unittests in TEST file in PACKAGE."
+  (let ((corresponding-ros-test (ros-catkin-test-files-in-package package (concat test "\\\.xml"))))
+    (if corresponding-ros-test (ros-catkin-test-run-single-rostest package test) (ros-catkin-test-run-single-gtest package test))))
+
+(defun ros-catkin-test-run-single-rostest(package test)
+  "Build and run a single rostest called TEST in PACKAGE."
+  (ros-catkin-compile-command "build" (concat  package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rostest " package " " test ".xml")))
+
+(defun ros-catkin-test-run-single-gtest (package test &optional regexp)
+  "Build and run a single gtest called TEST in PACKAGE.
+If REGEXP is not nil filter tests for REGEXP."
+  (ros-catkin-compile-command "build" (concat package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rosrun " package " " test (when regexp (concat " --gtest_filter=" regexp)))))
+
+(defun ros-catkin-test-file-in-current-package ()
+  "Prompt for test file in current package and build and run this test file."
+  (interactive)
+  (ros-catkin-test-file-in-package (ros-current-package)))
+
+(defun ros-catkin-run-current-test-file ()
+  "Build and run the test file in the current buffer."
+  (interactive)
+  (let ((test-candidate (file-name-sans-extension (file-name-nondirectory (buffer-file-name))))
+        (package (ros-current-package)))
+    (if (member test-candidate (ros-catkin-test-code-files-in-package package))
+        (ros-catkin-test-file-in-package2 package test-candidate)
+        (message "Current file is not a test file"))))
+
+(defun ros-catkin-test-at-point()
+  "If current file is a gtest test file, build and run the test at point."
+  (interactive)
+  (let* ((test-candidate (file-name-sans-extension (file-name-nondirectory (buffer-file-name))))
+       (package (ros-current-package))
+       (corresponding-ros-test (ros-catkin-test-files-in-package package (concat test-candidate "\\\.xml"))))
+  (if (not(member test-candidate (ros-catkin-test-code-files-in-package package)))
+    (message "Current file is not a test file.")
+    (if corresponding-ros-test
+        (message "This file is a ros test and can therefore not be filtered.")
+        (ros-catkin-test-run-single-gtest package test-candidate (symbol-name(symbol-at-point)))))))
+
 
 (defun ros-generic-list (type)
   "Return result from rosTYPE list.
