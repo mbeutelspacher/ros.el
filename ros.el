@@ -325,7 +325,7 @@ If REGEXP is not nil filter tests for REGEXP."
   (ros-catkin-test-file-in-package (ros-current-package)))
 
 ;;;###autoload
-(defun ros-catkin-run-current-test-file ()
+(defun ros-catkin-test-current-test-file ()
   "Build and run the test file in the current buffer."
   (interactive)
   (let ((test-candidate (file-name-sans-extension (file-name-nondirectory (buffer-file-name))))
@@ -345,7 +345,7 @@ If REGEXP is not nil filter tests for REGEXP."
     (message "Current file is not a test file.")
     (if corresponding-ros-test
         (message "This file is a ros test and can therefore not be filtered.")
-        (ros-catkin-test-run-single-gtest package test-candidate (symbol-name(symbol-at-point)))))))
+      (ros-catkin-test-run-single-gtest package test-candidate (concat "\"*" (symbol-name(symbol-at-point)) "*\""))))))
 
 
 (defun ros-generic-list (type)
