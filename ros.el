@@ -30,10 +30,11 @@
 ;; C++ and Python.
 
 ;;; Code:
+(require 'dash)
 (require 'dired)
+(require 'json)
 (require 's)
 (require 'subr-x)
-(require 'json)
 
 
 (defgroup ros nil "Related to the Robot Operating System." :group 'external)
@@ -189,14 +190,52 @@ If the current buffer does not lie in a ROS package return nil."
   "Return the directory of the current buffer or the current dired directory."
   (if (buffer-file-name) (file-name-directory (buffer-file-name)) (dired-current-directory)))
 
+(defvar ros-catkin-compile-history nil)
+
 (defun ros-catkin-compile-command (verb args workspace &optional profile additional_cmd)
   "Run catkin VERB with ARGS  after sourcing WORKSPACE with optional PROFILE.
 If ADDITIONAL_CMD is not nil, run it after the command."
   (let* ((default-directory workspace)
          (compilation-buffer-name-function (lambda (_) "*catkin*"))
          (profile-flag (if profile (format "--profile %s" profile) ""))
-         (add-cmd (if additional_cmd additional_cmd "true")))
-    (compile (ros-shell-prepend-ros-environment-commands (format "catkin %s %s %s && %s" verb profile-flag args add-cmd) workspace profile))))
+         (add-cmd (if additional_cmd additional_cmd "true"))
+         (compile-command (format "catkin %s %s %s && %s" verb profile-flag args add-cmd))
+         (triplet (list compile-command workspace profile)))
+    
+    (when (member triplet ros-catkin-compile-history)
+        (setq ros-catkin-compile-history (remove triplet ros-catkin-compile-history)))
+    (push triplet ros-catkin-compile-history)
+    (compile (ros-shell-prepend-ros-environment-commands  compile-command workspace profile))))
+
+(defun ros-catkin-generate-string-from-triplet (triplet)
+  "Convert TRIPLET consisting of compile command, workspace and profile to description string."
+  (format "%s IN %s WITH PROFILE %s" (first triplet) (second triplet) (third triplet)))
+
+(defun ros-catkin-parse-triplet-from-string (string)
+  "Convert description STRING to triplet consisting of compile command, workspace and profile."
+  (let ((command)
+        (workspace)
+        (profile))
+    (string-match "\\\(.*\\\) IN \\\(.*\\\) WITH PROFILE \\\(.*\\\)" string)
+    (setq command (match-string 1 string))
+    (setq workspace (match-string 2 string))
+    (setq profile (match-string 3 string))
+    (list command workspace profile)
+    ))
+
+(defun ros-catkin-completing-read-compile-history()
+  "Completing-read function for `ros-catkin-compile-history'."
+  (let ((ivy-sort-functions-alist nil))
+    (completing-read "Compile Command: " (mapcar 'ros-catkin-generate-string-from-triplet ros-catkin-compile-history) nil t)))
+
+(defun ros-catkin-compile-from-history (command)
+  "Prompt for past COMMAND and rerun it in the same workspace and the same profile."
+  (interactive (list (ros-catkin-completing-read-compile-history)))
+  (let ((triplet (ros-catkin-parse-triplet-from-string command))
+        (default-directory (ros-current-workspace))
+        (compilation-buffer-name-function (lambda (_) "*catkin*")))
+    (compile (ros-shell-prepend-ros-environment-commands (first triplet) (second triplet) (third triplet)))))
+
 
 ;;;###autoload
 (defun ros-catkin-build-workspace(workspace &optional profile)
