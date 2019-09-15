@@ -207,26 +207,28 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (push triplet ros-catkin-compile-history)
     (compile (ros-shell-prepend-ros-environment-commands  compile-command workspace profile))))
 
-(defun ros-catkin-generate-string-from-triplet (triplet)
+(defun ros-catkin-generate-string-from-triplet (triplet index)
   "Convert TRIPLET consisting of compile command, workspace and profile to description string."
-  (format "%s IN %s WITH PROFILE %s" (first triplet) (second triplet) (third triplet)))
+  (format "%04d: %s IN %s WITH PROFILE %s" index (first triplet) (second triplet) (third triplet)))
 
 (defun ros-catkin-parse-triplet-from-string (string)
   "Convert description STRING to triplet consisting of compile command, workspace and profile."
   (let ((command)
         (workspace)
         (profile))
-    (string-match "\\\(.*\\\) IN \\\(.*\\\) WITH PROFILE \\\(.*\\\)" string)
+    (string-match "[0-9]*: \\\(.*\\\) IN \\\(.*\\\) WITH PROFILE \\\(.*\\\)" string)
     (setq command (match-string 1 string))
     (setq workspace (match-string 2 string))
     (setq profile (match-string 3 string))
     (list command workspace profile)
     ))
 
+(defun ros-catkin-compile-history-indexes(compile-history)
+  (number-sequence 1 (length compile-history)))
+
 (defun ros-catkin-completing-read-compile-history()
   "Completing-read function for `ros-catkin-compile-history'."
-  (let ((ivy-sort-functions-alist nil))
-    (completing-read "Compile Command: " (mapcar 'ros-catkin-generate-string-from-triplet ros-catkin-compile-history) nil t)))
+(completing-read "Compile Command: " (mapcar* 'ros-catkin-generate-string-from-triplet ros-catkin-compile-history (ros-catkin-compile-history-indexes ros-catkin-compile-history)) nil t))
 
 (defun ros-catkin-compile-from-history (command)
   "Prompt for past COMMAND and rerun it in the same workspace and the same profile."
