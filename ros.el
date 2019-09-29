@@ -201,15 +201,18 @@ If ADDITIONAL_CMD is not nil, run it after the command."
          (add-cmd (if additional_cmd additional_cmd "true"))
          (compile-command (format "catkin %s %s %s && %s" verb profile-flag args add-cmd))
          (triplet (list compile-command workspace profile)))
-    
-    (when (member triplet ros-catkin-compile-history)
-        (setq ros-catkin-compile-history (remove triplet ros-catkin-compile-history)))
-    (push triplet ros-catkin-compile-history)
+    (ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates triplet)
     (compile (ros-shell-prepend-ros-environment-commands  compile-command workspace profile))))
 
 (defun ros-catkin-generate-string-from-triplet (triplet index)
   "Convert TRIPLET consisting of compile command, workspace and profile to description string."
   (format "%04d: %s IN %s WITH PROFILE %s" index (first triplet) (second triplet) (third triplet)))
+
+(defun ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates (triplet)
+  "Push TRIPLET to the front of `ros-catkin-compile-history' and remove any duplicates."
+  (when (member triplet ros-catkin-compile-history)
+    (setq ros-catkin-compile-history (remove triplet ros-catkin-compile-history)))
+  (push triplet ros-catkin-compile-history))
 
 (defun ros-catkin-parse-triplet-from-string (string)
   "Convert description STRING to triplet consisting of compile command, workspace and profile."
@@ -220,8 +223,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (setq command (match-string 1 string))
     (setq workspace (match-string 2 string))
     (setq profile (match-string 3 string))
-    (list command workspace profile)
-    ))
+    (list command workspace profile)))
 
 (defun ros-catkin-compile-history-indexes(compile-history)
   (number-sequence 1 (length compile-history)))
@@ -236,6 +238,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
   (let ((triplet (ros-catkin-parse-triplet-from-string command))
         (default-directory (ros-current-workspace))
         (compilation-buffer-name-function (lambda (_) "*catkin*")))
+    (ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates triplet)
     (compile (ros-shell-prepend-ros-environment-commands (first triplet) (second triplet) (third triplet)))))
 
 
