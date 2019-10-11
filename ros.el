@@ -674,6 +674,7 @@ and the point will be kept at the latest output."
     (ros-process-start-process buffer-name (concat "rosservice call " service " " arguments))
     (kill-buffer old-buffer)))
 
+
 ;;;###autoload
 (defun ros-insert-import-msg (message)
   "Prompt for MESSAGE and include it in file."
@@ -693,6 +694,30 @@ and the point will be kept at the latest output."
     (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
           ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
           (t (message "Only works in Python and C++ mode")))))
+
+;;;###autoload
+(defun ros-insert-msg (name)
+  "Insert  definition for msg NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-insert-msg-srv "msg" name))
+
+;;;###autoload
+(defun ros-insert-srv (name)
+  "Insert  definition for srv NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-insert-msg-srv "srv" name))
+
+(defun ros-insert-msg-srv (type name)
+  "Insert TYPE (either msg or srv) definition for NAME in the current buffer."
+  (let ((package (car (split-string name "/")))
+        (item-name (car (cdr (split-string name "/")))))
+    (insert (format " %s::%s" package item-name))))
+
+;;;###autoload
+(defun ros-insert-topic (topic)
+  "Prompt for TOPIC and insert it at point."
+  (interactive (list (ros-generic-completing-read "topic")))
+  (insert topic))
 
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
