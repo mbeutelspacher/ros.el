@@ -169,6 +169,69 @@ The WORKSPACE or if nil the one returned by the function
   "List all available ROS packages in the current workspace."
   (ros-shell-output-as-list "rospack list-names"))
 
+(defun ros-depend-on-other-package( dependency)
+  "Let current package depend on DEPENDENCY package."
+  (interactive (list (ros-completing-read-packages)))
+  (ros-depend-on-other-package-package-xml dependency)
+  (ros-depend-on-other-package-cmakelists-find-package dependency)
+  (ros-depend-on-other-package-cmakelists-catkin-package dependency)
+  )
+
+
+(defun ros-depend-on-other-package-package-xml( dependency)
+  "Write DEPENDENCY in package.xml file in current file."
+  (let ((packagexml (concat (locate-dominating-file (ros-current-directory) "package.xml") "package.xml"))
+        (line (format "<depend>%s</depend>" dependency)))
+    (with-current-buffer (find-file-noselect packagexml)
+      (goto-char 1)
+      (when (not (search-forward line nil t))
+        (goto-char 1)
+        (when (search-forward "<buildtool_depend>catkin</buildtool_depend>" nil t)
+          (move-end-of-line nil)
+          (open-line 1)
+          (forward-line)
+          (indent-for-tab-command)
+          (insert line)
+          (save-buffer))))))
+
+
+(defun ros-depend-on-other-package-cmakelists-find-package( dependency)
+  "Write DEPENDENCY in CMakeLists.txt file in current file."
+  (let (( cmakefile (concat (locate-dominating-file (ros-current-directory) "CMakeLists.txt") "CMakeLists.txt")))
+    (with-current-buffer (find-file-noselect cmakefile)
+      (goto-char 1)
+        (when (search-forward "find_package" nil t)
+          (let ((begin-components (search-forward "COMPONENTS"))
+                (end-components (search-forward ")")))
+            (goto-char begin-components)
+            (when (not (search-forward dependency end-components t))
+              (goto-char begin-components)
+              (move-end-of-line nil)
+              (open-line 1)
+              (forward-line)
+              (indent-for-tab-command)
+              (insert dependency)
+              (save-buffer)))))))
+
+
+(defun ros-depend-on-other-package-cmakelists-catkin-package( dependency)
+  "Write DEPENDENCY in CMakeLists.txt file in current file."
+  (let (( cmakefile (concat (locate-dominating-file (ros-current-directory) "CMakeLists.txt") "CMakeLists.txt")))
+    (with-current-buffer (find-file-noselect cmakefile)
+      (goto-char 1)
+      (when (search-forward "catkin_package" nil t)
+        (let ((begin-components (search-forward "CATKIN_DEPENDS"))
+              (end-components (search-forward ")")))
+          (goto-char begin-components)
+          (when (not (search-forward dependency end-components t))
+            (goto-char begin-components)
+            (move-end-of-line nil)
+            (open-line 1)
+            (forward-line)
+            (indent-for-tab-command)
+            (insert dependency)
+            (save-buffer)))))))
+
 (defun ros-completing-read-packages ()
   "Completing read function for ROS packages."
   (completing-read "Package: " (ros-packages) nil t ))
