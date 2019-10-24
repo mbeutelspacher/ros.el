@@ -169,6 +169,69 @@ The WORKSPACE or if nil the one returned by the function
   "List all available ROS packages in the current workspace."
   (ros-shell-output-as-list "rospack list-names"))
 
+(defun ros-depend-on-other-package( dependency)
+  "Let current package depend on DEPENDENCY package."
+  (interactive (list (ros-completing-read-packages)))
+  (ros-depend-on-other-package-package-xml dependency)
+  (ros-depend-on-other-package-cmakelists-find-package dependency)
+  (ros-depend-on-other-package-cmakelists-catkin-package dependency)
+  )
+
+
+(defun ros-depend-on-other-package-package-xml( dependency)
+  "Write DEPENDENCY in package.xml file in current file."
+  (let ((packagexml (concat (locate-dominating-file (ros-current-directory) "package.xml") "package.xml"))
+        (line (format "<depend>%s</depend>" dependency)))
+    (with-current-buffer (find-file-noselect packagexml)
+      (goto-char 1)
+      (when (not (search-forward line nil t))
+        (goto-char 1)
+        (when (search-forward "<buildtool_depend>catkin</buildtool_depend>" nil t)
+          (move-end-of-line nil)
+          (open-line 1)
+          (forward-line)
+          (indent-for-tab-command)
+          (insert line)
+          (save-buffer))))))
+
+
+(defun ros-depend-on-other-package-cmakelists-find-package( dependency)
+  "Write DEPENDENCY in CMakeLists.txt file in current file."
+  (let (( cmakefile (concat (locate-dominating-file (ros-current-directory) "CMakeLists.txt") "CMakeLists.txt")))
+    (with-current-buffer (find-file-noselect cmakefile)
+      (goto-char 1)
+        (when (search-forward "find_package" nil t)
+          (let ((begin-components (search-forward "COMPONENTS"))
+                (end-components (search-forward ")")))
+            (goto-char begin-components)
+            (when (not (search-forward dependency end-components t))
+              (goto-char begin-components)
+              (move-end-of-line nil)
+              (open-line 1)
+              (forward-line)
+              (indent-for-tab-command)
+              (insert dependency)
+              (save-buffer)))))))
+
+
+(defun ros-depend-on-other-package-cmakelists-catkin-package( dependency)
+  "Write DEPENDENCY in CMakeLists.txt file in current file."
+  (let (( cmakefile (concat (locate-dominating-file (ros-current-directory) "CMakeLists.txt") "CMakeLists.txt")))
+    (with-current-buffer (find-file-noselect cmakefile)
+      (goto-char 1)
+      (when (search-forward "catkin_package" nil t)
+        (let ((begin-components (search-forward "CATKIN_DEPENDS"))
+              (end-components (search-forward ")")))
+          (goto-char begin-components)
+          (when (not (search-forward dependency end-components t))
+            (goto-char begin-components)
+            (move-end-of-line nil)
+            (open-line 1)
+            (forward-line)
+            (indent-for-tab-command)
+            (insert dependency)
+            (save-buffer)))))))
+
 (defun ros-completing-read-packages ()
   "Completing read function for ROS packages."
   (completing-read "Package: " (ros-packages) nil t ))
@@ -205,7 +268,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (compile (ros-shell-prepend-ros-environment-commands  compile-command workspace profile))))
 
 (defun ros-catkin-generate-string-from-triplet (triplet index)
-  "Convert TRIPLET consisting of compile command, workspace and profile to description string."
+  "Convert TRIPLET consisting of compile command, workspace and profile to description string and prepend it with the INDEX."
   (format "%04d: %s IN %s WITH PROFILE %s" index (first triplet) (second triplet) (third triplet)))
 
 (defun ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates (triplet)
@@ -226,6 +289,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (list command workspace profile)))
 
 (defun ros-catkin-compile-history-indexes(compile-history)
+  "Return a sequence of numbers from 1 to the length of COMPILE-HISTORY."
   (number-sequence 1 (length compile-history)))
 
 (defun ros-catkin-completing-read-compile-history()
@@ -674,6 +738,7 @@ and the point will be kept at the latest output."
     (ros-process-start-process buffer-name (concat "rosservice call " service " " arguments))
     (kill-buffer old-buffer)))
 
+
 ;;;###autoload
 (defun ros-insert-import-msg (message)
   "Prompt for MESSAGE and include it in file."
@@ -693,6 +758,30 @@ and the point will be kept at the latest output."
     (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
           ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
           (t (message "Only works in Python and C++ mode")))))
+
+;;;###autoload
+(defun ros-insert-msg (name)
+  "Insert  definition for msg NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-insert-msg-srv name))
+
+;;;###autoload
+(defun ros-insert-srv (name)
+  "Insert  definition for srv NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-insert-msg-srv name))
+
+(defun ros-insert-msg-srv (name)
+  "Insert (either msg or srv) definition for NAME in the current buffer."
+  (let ((package (car (split-string name "/")))
+        (item-name (car (cdr (split-string name "/")))))
+    (insert (format " %s::%s" package item-name))))
+
+;;;###autoload
+(defun ros-insert-topic (topic)
+  "Prompt for TOPIC and insert it at point."
+  (interactive (list (ros-generic-completing-read "topic")))
+  (insert topic))
 
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
