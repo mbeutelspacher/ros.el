@@ -268,7 +268,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (compile (ros-shell-prepend-ros-environment-commands  compile-command workspace profile))))
 
 (defun ros-catkin-generate-string-from-triplet (triplet index)
-  "Convert TRIPLET consisting of compile command, workspace and profile to description string."
+  "Convert TRIPLET consisting of compile command, workspace and profile to description string and prepend it with the INDEX."
   (format "%04d: %s IN %s WITH PROFILE %s" index (first triplet) (second triplet) (third triplet)))
 
 (defun ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates (triplet)
@@ -289,6 +289,7 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (list command workspace profile)))
 
 (defun ros-catkin-compile-history-indexes(compile-history)
+  "Return a sequence of numbers from 1 to the length of COMPILE-HISTORY."
   (number-sequence 1 (length compile-history)))
 
 (defun ros-catkin-completing-read-compile-history()
@@ -762,16 +763,16 @@ and the point will be kept at the latest output."
 (defun ros-insert-msg (name)
   "Insert  definition for msg NAME in the current buffer."
   (interactive (list (ros-generic-completing-read "msg")))
-  (ros-insert-msg-srv "msg" name))
+  (ros-insert-msg-srv name))
 
 ;;;###autoload
 (defun ros-insert-srv (name)
   "Insert  definition for srv NAME in the current buffer."
   (interactive (list (ros-generic-completing-read "srv")))
-  (ros-insert-msg-srv "srv" name))
+  (ros-insert-msg-srv name))
 
-(defun ros-insert-msg-srv (type name)
-  "Insert TYPE (either msg or srv) definition for NAME in the current buffer."
+(defun ros-insert-msg-srv (name)
+  "Insert (either msg or srv) definition for NAME in the current buffer."
   (let ((package (car (split-string name "/")))
         (item-name (car (cdr (split-string name "/")))))
     (insert (format " %s::%s" package item-name))))
