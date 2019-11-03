@@ -35,7 +35,7 @@
 (require 'json)
 (require 's)
 (require 'subr-x)
-
+(require 'hydra)
 
 (defgroup ros nil "Related to the Robot Operating System." :group 'external)
 
@@ -780,6 +780,8 @@ and the point will be kept at the latest output."
   (interactive (list (ros-generic-completing-read "topic")))
   (insert topic))
 
+
+
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
@@ -1008,6 +1010,191 @@ If this is not set return nil"
   (interactive (list (ros-env-completing-read-host-directory)))
   (setq ros-env-host-directory directory))
 
+
+(defhydra hydra-ros-main (:color blue :hint nil)
+  "
+_c_: Compile          _m_: Messages      _p_: Packages          _T_: Topics
+_d_: Debug            _n_: Nodes         _S_: Active Services   _t_: Tests
+_e_: Environment      _P_: Parameters     _s_: Services         _w_: Workspaces
+"
+  ("c" hydra-ros-compile/body)
+  ("e" hydra-ros-environment/body)
+  ("s" hydra-ros-services/body)
+  ("m" hydra-ros-messages/body)
+  ("n" hydra-ros-nodes/body)
+  ("d" hydra-ros-debug/body)
+  ("p" hydra-ros-packages/body)
+  ("P" hydra-ros-parameters/body)
+  ("S" hydra-ros-active-services/body)
+  ("T" hydra-ros-topics/body)
+  ("t" hydra-ros-tests/body)
+  ("w" hydra-ros-workspaces/body)
+  ("q" nil "quit" :color blue))
+
+(defhydra hydra-ros-compile (:color blue :hint nil)
+ "
+_r_: Compile from history  _p_: Build current package  _w_: Build current workspace
+^ ^                        _P_: Build a package        _W_: Build a workspace
+"
+  ("r" ros-catkin-compile-from-history)
+  ("p" ros-catkin-build-current-package)
+  ("P" ros-catkin-build-package)
+  ("w" ros-catkin-build-current-workspace)
+  ("W" ros-catkin-build-workspace)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+  
+(defhydra hydra-ros-environment (:color blue :hint nil)
+  "
+_m_: Set ROS Master _n_: Set Network Interface _h_: Set Host Directory
+"
+  ("m" ros-env-set-ros-master)
+  ("n" ros-env-select-network-interface)
+  ("h" ros-env-select-host-directory)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-services (:color blue :hint nil)
+  "
+_i_: Insert srv type at point               _s_: Show srv 
+_I_: Insert import statement for srv type
+"
+  ("s" ros-srv-show)
+  ("i" ros-insert-srv)
+  ("I" ros-insert-import-srv)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+
+(defhydra hydra-ros-active-services (:color blue :hint nil)
+  "
+_s_: Show active Service    _c_: Call active service
+"
+  ("s" ros-service-show)
+  ("c" ros-service-call)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+
+(defhydra hydra-ros-workspaces (:color blue :hint nil)
+  "
+_s_: Select Workspace _c_: Build current workspace _x_: Clean current workspace   _t_: Test current workspace
+_p_: Select Profile   _C_: Build a workspace       _X_: Clean a workspace         _T_: Test a workspace     
+"
+  ("s" ros-select-workspace)
+  ("p" ros-select-profile)
+  ("c" ros-catkin-build-current-workspace)
+  ("C" ros-catkin-build-workspace)
+  ("x" ros-catkin-clean-current-workspace)
+  ("X" ros-catkin-clean-workspace)
+  ("t" ros-catkin-test-current-workspace)
+  ("T" ros-catkin-test-workspace)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+
+(defhydra hydra-ros-topics (:color blue :hint nil)
+  "
+_e_: Echo Topic                   _s_: Show Topic                   _p_: Publish message on topic                   _i_: Insert name of topic at point
+_E_: Echo Topic filtered by type  _S_: Show Topic filtered by type  _P_: Publlish message on topic filtered by type _I_: Insert name of topic at point filtered by type
+"
+  ("e" ros-topic-echo) 
+  ("E" ros-topic-echo-filtered) 
+  ("s" ros-topic-show)
+  ("S" ros-topic-show-filtered)
+  ("p" ros-topic-pub)
+  ("P" ros-topic-pub-filtered)
+  ("i" ros-insert-topic)
+  ("I" ros-insert-topic-filtered)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-messages (:color blue :hint nil)
+  "
+_i_: Insert message type at point               _s_: Show message 
+_I_: Insert import statement for message type
+"
+  ("s" ros-msg-show)
+  ("i" ros-insert-msg)
+  ("I" ros-insert-import-msg)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-nodes (:color blue :hint nil)
+  "
+_s_: Show node
+"
+  ("s" ros-node-show)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-debug (:color blue :hint nil)
+  "
+_l_: Set ROS logger level 
+"
+  ("l" ros-logger-set-level)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-packages (:color blue :hint nil)
+  "
+_c_: Build current package _t_: Test current package _x_: Clean current package   _f_: Find file in current package _g_: Grep in current package
+_C_: Build a package       _T_: Test a package       _X_: Clean a package         _F_: Open a package in dired
+"
+  ("c" ros-catkin-build-current-package)
+  ("C" ros-catkin-build-package)
+  ("t" ros-catkin-test-current-package)
+  ("T" ros-catkin-test-package)
+  ("x" ros-catkin-clean-current-package)
+  ("X" ros-catkin-clean-package)
+  ("f" spaceros-find-in-current-package)
+  ("F" ros-dired-package)
+  ("g" spaceros-grep-in-current-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+
+(defhydra hydra-ros-tests (:color blue :hint nil)
+  "
+_t_: Run test at point   _f_: Run current test file  _w_: Test current workspace  _p_: Run tests in current package
+^ ^                      ^ ^                         _W_: Test a workspace        _P_: Run tests in a package
+"
+  ("t" ros-catkin-test-at-point)
+  ("f" ros-catkin-test-current-test-file)
+  ("w" ros-catkin-test-current-workspace)
+  ("W" ros-catkin-test-workspace)
+  ("p" hydra-ros-test-current-package/body)
+  ("P" hydra-ros-test-a-package/body)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-test-current-package (:color blue :hint nil)
+  "
+_f_: Run a test file   _a_: Run all tests
+"
+  ("f" ros-catkin-test-file-in-current-package)
+  ("a" ros-catkin-test-current-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-tests/body "Go back"))
+
+
+(defhydra hydra-ros-test-a-package (:color blue :hint nil)
+  "
+_f_: Run a test file in a package   _a_: Run all tests in a package
+"
+  ("f" ros-catkin-test-file-in-package)
+  ("a" ros-catkin-test-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-tests/body "Go back"))
+
+(defhydra hydra-ros-parameters (:color blue :hint nil)
+  "
+_s_: Set ROS parameter   _d_: Set dynamic reconfigure parameter
+"
+  ("s" ros-param-set)
+  ("d" ros-dynmaic-reconfigure-set-param)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
 
 (provide 'ros)
 
