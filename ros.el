@@ -91,8 +91,7 @@
   "Return the path to the devel space that WORKSPACE with optional PROFILE or default profile extends."
   (let ((workspace (shell-quote-argument (expand-file-name workspace)))
         (profile-flag (if profile (concat "--profile " (shell-quote-argument profile)) "")))
-    (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":"))))
-  )
+    (s-trim (car (split-string (car (cdr (split-string (shell-command-to-string (format "cd %s && catkin --no-color config %s | awk '{if ($1 == \"Extending:\"){print $3}}'" workspace profile-flag)) "\n"))) ":")))))
 
 (defun ros-completing-read-workspace ()
   "Read a workspace from the minibuffer."
@@ -148,8 +147,7 @@ in the variables `ros-current-workspace' and `ros-current-profile'."
   (let ((workspace (if workspace workspace (ros-current-workspace)))
          (prof (if profile profile ros-current-profile))
         (export-master-uri (if (ros-env-ros-master-uri) (format "export ROS_MASTER_URI=%s" (ros-env-ros-master-uri)) "true"))
-        (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true"))
-        )
+        (export-ros-ip (if (ros-env-ros-ip) (format "export ROS_IP=%s" (ros-env-ros-ip)) "true")))
     (format "%s && %s && %s && %s" export-master-uri export-ros-ip (ros-catkin-source-workspace-command workspace prof) cmd)))
 
 (defun ros-shell-command-to-string (cmd &optional workspace profile)
@@ -174,8 +172,7 @@ The WORKSPACE or if nil the one returned by the function
   (interactive (list (ros-completing-read-packages)))
   (ros-depend-on-other-package-package-xml dependency)
   (ros-depend-on-other-package-cmakelists-find-package dependency)
-  (ros-depend-on-other-package-cmakelists-catkin-package dependency)
-  )
+  (ros-depend-on-other-package-cmakelists-catkin-package dependency))
 
 
 (defun ros-depend-on-other-package-package-xml( dependency)
@@ -967,8 +964,7 @@ This returns the master in the form \"(Name, Value)\""
   "Prompt for NEW-MASTER to set the variable `ros-env-ros-master'."
   (interactive  (list (ros-env-completing-read-ros-master)))
   (setq ros-env-ros-master (cdr(assoc (s-trim(car(split-string new-master "("))) ros-env-saved-ros-masters)))
-  (message (concat "ROS Master is set to " ros-env-ros-master))
-  )
+  (message (concat "ROS Master is set to " ros-env-ros-master)))
 
 (defun ros-env-get-ip-address (dev)
   "Return the IP-address for network device DEV."
