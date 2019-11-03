@@ -1011,7 +1011,7 @@ If this is not set return nil"
   (setq ros-env-host-directory directory))
 
 
-(defhydra hydra-ros-main (:color blue :hint nil)
+(defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
 _c_: Compile          _m_: Messages      _p_: Packages          _T_: Topics
 _d_: Debug            _n_: Nodes         _S_: Active Services   _t_: Tests
@@ -1031,7 +1031,7 @@ _e_: Environment      _P_: Parameters     _s_: Services         _w_: Workspaces
   ("w" hydra-ros-workspaces/body)
   ("q" nil "quit" :color blue))
 
-(defhydra hydra-ros-compile (:color blue :hint nil)
+(defhydra hydra-ros-compile (:color blue :hint nil :foreign-keys warn)
  "
 _r_: Compile from history  _p_: Build current package  _w_: Build current workspace
 ^ ^                        _P_: Build a package        _W_: Build a workspace
@@ -1044,7 +1044,7 @@ _r_: Compile from history  _p_: Build current package  _w_: Build current worksp
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
   
-(defhydra hydra-ros-environment (:color blue :hint nil)
+(defhydra hydra-ros-environment (:color blue :hint nil :foreign-keys warn)
   "
 _m_: Set ROS Master _n_: Set Network Interface _h_: Set Host Directory
 "
@@ -1054,7 +1054,7 @@ _m_: Set ROS Master _n_: Set Network Interface _h_: Set Host Directory
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-services (:color blue :hint nil)
+(defhydra hydra-ros-services (:color blue :hint nil :foreign-keys warn)
   "
 _i_: Insert srv type at point               _s_: Show srv 
 _I_: Insert import statement for srv type
@@ -1066,7 +1066,7 @@ _I_: Insert import statement for srv type
   ("^" hydra-ros-main/body "Go back"))
 
 
-(defhydra hydra-ros-active-services (:color blue :hint nil)
+(defhydra hydra-ros-active-services (:color blue :hint nil :foreign-keys warn)
   "
 _s_: Show active Service    _c_: Call active service
 "
@@ -1076,7 +1076,7 @@ _s_: Show active Service    _c_: Call active service
   ("^" hydra-ros-main/body "Go back"))
 
 
-(defhydra hydra-ros-workspaces (:color blue :hint nil)
+(defhydra hydra-ros-workspaces (:color blue :hint nil :foreign-keys warn)
   "
 _s_: Select Workspace _c_: Build current workspace _x_: Clean current workspace   _t_: Test current workspace
 _p_: Select Profile   _C_: Build a workspace       _X_: Clean a workspace         _T_: Test a workspace     
@@ -1093,7 +1093,7 @@ _p_: Select Profile   _C_: Build a workspace       _X_: Clean a workspace       
   ("^" hydra-ros-main/body "Go back"))
 
 
-(defhydra hydra-ros-topics (:color blue :hint nil)
+(defhydra hydra-ros-topics (:color blue :hint nil :foreign-keys warn)
   "
 _e_: Echo Topic                   _s_: Show Topic                   _p_: Publish message on topic                   _i_: Insert name of topic at point
 _E_: Echo Topic filtered by type  _S_: Show Topic filtered by type  _P_: Publlish message on topic filtered by type _I_: Insert name of topic at point filtered by type
@@ -1109,7 +1109,7 @@ _E_: Echo Topic filtered by type  _S_: Show Topic filtered by type  _P_: Publlis
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-messages (:color blue :hint nil)
+(defhydra hydra-ros-messages (:color blue :hint nil :foreign-keys warn)
   "
 _i_: Insert message type at point               _s_: Show message 
 _I_: Insert import statement for message type
@@ -1120,7 +1120,7 @@ _I_: Insert import statement for message type
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-nodes (:color blue :hint nil)
+(defhydra hydra-ros-nodes (:color blue :hint nil :foreign-keys warn)
   "
 _s_: Show node
 "
@@ -1128,7 +1128,7 @@ _s_: Show node
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-debug (:color blue :hint nil)
+(defhydra hydra-ros-debug (:color blue :hint nil :foreign-keys warn)
   "
 _l_: Set ROS logger level 
 "
@@ -1136,7 +1136,7 @@ _l_: Set ROS logger level
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-packages (:color blue :hint nil)
+(defhydra hydra-ros-packages (:color blue :hint nil :foreign-keys warn)
   "
 _c_: Build current package _t_: Test current package _x_: Clean current package   _f_: Find file in current package _g_: Grep in current package
 _C_: Build a package       _T_: Test a package       _X_: Clean a package         _F_: Open a package in dired
@@ -1154,7 +1154,7 @@ _C_: Build a package       _T_: Test a package       _X_: Clean a package       
   ("^" hydra-ros-main/body "Go back"))
 
 
-(defhydra hydra-ros-tests (:color blue :hint nil)
+(defhydra hydra-ros-tests (:color blue :hint nil :foreign-keys warn)
   "
 _t_: Run test at point   _f_: Run current test file  _w_: Test current workspace  _p_: Run tests in current package
 ^ ^                      ^ ^                         _W_: Test a workspace        _P_: Run tests in a package
@@ -1168,7 +1168,7 @@ _t_: Run test at point   _f_: Run current test file  _w_: Test current workspace
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
-(defhydra hydra-ros-test-current-package (:color blue :hint nil)
+(defhydra hydra-ros-test-current-package (:color blue :hint nil :foreign-keys warn)
   "
 _f_: Run a test file   _a_: Run all tests
 "
@@ -1178,7 +1178,7 @@ _f_: Run a test file   _a_: Run all tests
   ("^" hydra-ros-tests/body "Go back"))
 
 
-(defhydra hydra-ros-test-a-package (:color blue :hint nil)
+(defhydra hydra-ros-test-a-package (:color blue :hint nil :foreign-keys warn)
   "
 _f_: Run a test file in a package   _a_: Run all tests in a package
 "
@@ -1187,7 +1187,7 @@ _f_: Run a test file in a package   _a_: Run all tests in a package
   ("q" nil "quit hydra")
   ("^" hydra-ros-tests/body "Go back"))
 
-(defhydra hydra-ros-parameters (:color blue :hint nil)
+(defhydra hydra-ros-parameters (:color blue :hint nil :foreign-keys warn)
   "
 _s_: Set ROS parameter   _d_: Set dynamic reconfigure parameter
 "
