@@ -1192,7 +1192,7 @@ _f_: Run a test file in a package   _a_: Run all tests in a package
 _s_: Set ROS parameter   _d_: Set dynamic reconfigure parameter
 "
   ("s" ros-param-set)
-  ("d" ros-dynmaic-reconfigure-set-param)
+  ("d" ros-dynamic-reconfigure-set-param)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
