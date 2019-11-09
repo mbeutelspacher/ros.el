@@ -780,7 +780,11 @@ and the point will be kept at the latest output."
   (interactive (list (ros-generic-completing-read "topic")))
   (insert topic))
 
-
+;;;###autoload
+(defun ros-insert-topic-filtered (topic)
+  "Prompt for TOPIC filtered by type and insert it at point."
+  (interactive (list (ros-topic-completing-read-topic-filtered)))
+  (insert topic))
 
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
@@ -1192,7 +1196,7 @@ _f_: Run a test file in a package   _a_: Run all tests in a package
 _s_: Set ROS parameter   _d_: Set dynamic reconfigure parameter
 "
   ("s" ros-param-set)
-  ("d" ros-dynmaic-reconfigure-set-param)
+  ("d" ros-dynamic-reconfigure-set-param)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
