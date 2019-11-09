@@ -780,7 +780,11 @@ and the point will be kept at the latest output."
   (interactive (list (ros-generic-completing-read "topic")))
   (insert topic))
 
-
+;;;###autoload
+(defun ros-insert-topic-filtered (topic)
+  "Prompt for TOPIC filtered by type and insert it at point."
+  (interactive (list (ros-topic-completing-read-topic-filtered)))
+  (insert topic))
 
 (defun ros-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
