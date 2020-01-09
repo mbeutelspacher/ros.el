@@ -296,8 +296,8 @@ If ADDITIONAL_CMD is not nil, run it after the command."
 (defun ros-catkin-compile-from-history (command)
   "Prompt for past COMMAND and rerun it in the same workspace and the same profile."
   (interactive (list (ros-catkin-completing-read-compile-history)))
-  (let ((triplet (ros-catkin-parse-triplet-from-string command))
-        (default-directory (ros-current-workspace))
+  (let* ((triplet (ros-catkin-parse-triplet-from-string command))
+        (default-directory (second triplet))
         (compilation-buffer-name-function (lambda (_) "*catkin*")))
     (ros-catkin-insert-triplet-to-front-of-history-and-delete-duplicates triplet)
     (compile (ros-shell-prepend-ros-environment-commands (first triplet) (second triplet) (third triplet)))))
