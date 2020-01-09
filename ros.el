@@ -52,6 +52,8 @@
 
 (defvar ros-current-workspace nil "Path to binary/devel directory of current catkin workspace.")
 
+(defcustom ros-catkin-build-limited-status-rate nil "Limit update rate of status when compiling to this rate. If nil no restriction" :type 'integer)
+
 (defun ros-current-workspace ()
   "Return path to binary/devel directory of current catkin workspace or to default workspace if not set."
   (if ros-current-workspace ros-current-workspace ros-default-workspace))
@@ -303,13 +305,20 @@ If ADDITIONAL_CMD is not nil, run it after the command."
     (compile (ros-shell-prepend-ros-environment-commands (first triplet) (second triplet) (third triplet)))))
 
 
+
+(defun ros-catkin-build-command (args workspace &optional profile additional_cmd)
+  "Run catkin build with ARGS  after sourcing WORKSPACE with optional PROFILE.
+If ADDITIONAL_CMD is not nil, run it after the command."
+  (let ((limit-status (when ros-catkin-build-limited-status-rate (concat " --limit-status-rate " (number-to-string ros-catkin-build-limited-status-rate)))))
+    (ros-catkin-compile-command (concat "build" limit-status) args workspace profile additional_cmd)))
+
 ;;;###autoload
 (defun ros-catkin-build-workspace(workspace &optional profile)
   "Build the WORKSPACE with PROFILE or default if not provided.
 If called interactively prompt for WORKSPACE and PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    (ros-catkin-compile-command "build" "" workspace prof)))
+    (ros-catkin-build-command "" workspace prof)))
 
 ;;;###autoload
 (defun ros-catkin-build-current-workspace()
@@ -324,7 +333,7 @@ The packages will be built in the workspace specified
 in the variable `ros-current-workspace' and with the profile
 specified in the variable`ros-current-profile'."
   (interactive (list (ros-completing-read-packages)))
-  (ros-catkin-compile-command "build" package (ros-current-workspace) ros-current-profile))
+  (ros-catkin-build-command package (ros-current-workspace) ros-current-profile))
 
 ;;;###autoload
 (defun ros-catkin-build-current-package ()
@@ -363,7 +372,7 @@ specified in the variable`ros-current-profile'."
 (defun ros-catkin-test-package(package)
   "Build and run all unittests in PACKAGE."
   (interactive (list (ros-completing-read-packages)))
-  (ros-catkin-compile-command "build" (concat package " --catkin-make-args run_tests") (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
+  (ros-catkin-build-command (concat package " --catkin-make-args run_tests") (ros-current-workspace) ros-current-profile (concat "catkin_test_results build/" package)))
 
 ;;;###autoload
 (defun ros-catkin-test-current-package()
@@ -376,7 +385,7 @@ specified in the variable`ros-current-profile'."
   "Build and run all unittests in WORKSPACE with profile PROFILE."
   (interactive (list (ros-completing-read-workspace)))
   (let ((prof (if profile profile (ros-completing-read-catkin-profiles workspace))))
-    (ros-catkin-compile-command "build" "--catkin-make-args run_tests" workspace prof)))
+    (ros-catkin-build-command "--catkin-make-args run_tests" workspace prof)))
 
 ;;;###autoload
 (defun ros-catkin-test-current-workspace()
@@ -416,12 +425,12 @@ The workspace and the profile are specified in the variables
 
 (defun ros-catkin-test-run-single-rostest(package test)
   "Build and run a single rostest called TEST in PACKAGE."
-  (ros-catkin-compile-command "build" (concat  package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rostest " package " " test ".xml")))
+  (ros-catkin-build-command (concat  package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rostest " package " " test ".xml")))
 
 (defun ros-catkin-test-run-single-gtest (package test &optional regexp)
   "Build and run a single gtest called TEST in PACKAGE.
 If REGEXP is not nil filter tests for REGEXP."
-  (ros-catkin-compile-command "build" (concat package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rosrun " package " " test (when regexp (concat " --gtest_filter=" regexp)))))
+  (ros-catkin-build-command (concat package " --no-deps --make-args " test) (ros-current-workspace) ros-current-profile (concat "rosrun " package " " test (when regexp (concat " --gtest_filter=" regexp)))))
 
 ;;;###autoload
 (defun ros-catkin-test-file-in-current-package ()
