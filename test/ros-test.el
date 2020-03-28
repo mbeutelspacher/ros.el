@@ -57,6 +57,34 @@
     (should (string= (ros-catkin-locate-devel)
                      (expand-file-name "~/git/catkin/ipa/devel_debug")))))
 
+(ert-deftest ros-shell-source-command nil
+  (let ((ros-current-workspace "~/git/catkin/ipa")
+        (ros-current-profile "debug"))
+    (should (string= (ros-shell-source-command)
+                     (format "source %s" (expand-file-name "~/git/catkin/ipa/devel_debug/setup.bash"))))))
+
+(ert-deftest ros-shell-source-command-default nil
+  (let ((ros-current-workspace nil))
+    (should (string= (ros-shell-source-command)
+                     (format "source %s" (expand-file-name "/opt/ros/melodic/setup.bash"))))))
+
+(ert-deftest ros-catkin-list-profiles nil
+    (should (member "default" (ros-catkin-list-profiles "~/git/catkin/ipa"))))
+
+(ert-deftest ros-list-packages nil
+  (should (member "move_base" (ros-packages-list))))
+
+(ert-deftest ros-list-packages nil
+  (let ((ros-current-workspace "~/git/catkin/ipa"))
+    (should (member "ipa_navigation_config" (ros-packages-list)))))
+
+(ert-deftest ros-list-package-locations nil
+  (let ((package-location-list (ros-packages-location-list)))
+    (should (member "move_base" (kvalist->keys package-location-list)))
+    (should (string= (cdr (assoc "move_base" package-location-list)) "/opt/ros/melodic/share/move_base"))))
+
+
+
 
 (provide 'ros-test)
 

@@ -4,6 +4,7 @@
 (depends-on "s")
 (depends-on "hydra")
 (depends-on "with-shell-interpreter")
+(depends-on "kv")
 
 (development
  (depends-on "ert")
