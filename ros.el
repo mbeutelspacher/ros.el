@@ -34,6 +34,7 @@
 (require 'with-shell-interpreter)
 (require 's)
 (require 'kv)
+(require 'cl-lib)
 
 (defgroup ros nil "Related to the Robot Operating System."
   :group 'external)
@@ -128,6 +129,60 @@ If the current buffer does not lie in a ROS package return nil."
     (insert-file-contents path)
     (string-match  "<name>\\(.*\\)</name>" (buffer-string))
     (match-string 1 (buffer-string))))
+
+(cl-defun ros-catkin-dump-action (&key tramp-prefix workspace profile verb flags args post-cmd)
+  "Dump TRAMP-PREFIX WORKSPACE PROFILE and COMMAND in a association list."
+  (list (cons "tramp-prefix" tramp-prefix)
+   (cons "workspace"  workspace)
+   (cons "profile" profile)
+   (cons "verb" verb)
+   (cons "flags" flags)
+   (cons "args" args)
+   (cons "post-cmd" post-cmd)))
+
+(defun ros-catkin-load-action (action)
+  "Generate catkin command from ACTION."
+  (let* ((ros-current-tramp-prefix (cdr(assoc "tramp-prefix" action)))
+         (ros-current-workspace (cdr(assoc "workspace" action)))
+         (ros-current-profile (cdr(assoc "profile" action)))
+         (verb (cdr(assoc "verb" action)))
+         (flags (cdr(assoc "flags" action)))
+         (args (cdr(assoc "args" action)))
+         (post-cmd (cdr(assoc "post-cmd" action)))
+         (source-command (ros-shell-source-command)))
+    (concat source-command " && catkin " verb " --profile " ros-current-profile " " (when flags (concat flags " ")) args (when post-cmd (concat " && " post-cmd)))))
+
+(defvar ros-catkin-action-history '() "List of catkin actions sorted by recenctness.")
+
+(defun ros-catkin-display-action (action)
+  "Display string which describes the ACTION."
+  (let* ((tramp-prefix (cdr(assoc "tramp-prefix" action)))
+         (workspace (cdr(assoc "workspace" action)))
+         (profile (cdr(assoc "profile" action)))
+         (verb (cdr(assoc "verb" action)))
+         (flags (cdr(assoc "flags" action)))
+         (args (cdr(assoc "args" action)))
+         (post-cmd (cdr(assoc "post-cmd" action))))
+    (format "%s | %s | %s | catkin %s %s %s %s" (if tramp-prefix tramp-prefix "localhost") workspace profile verb flags args (when post-cmd (concat "&& " post-cmd)))))
+
+(defun ros-catkin-compare-actions (action1 action2)
+  "Comparison function to compare ACTION1 and ACTION2."
+  (string= (ros-catkin-display-action action1) (ros-catkin-display-action action2)))
+
+(defun ros-catkin-push-action-to-history (action)
+  "Push ACTION to the front of `ros-catkin-action-history'.
+
+Further occurrences are removed.
+"
+  (when (member action ros-catkin-action-history) (setq ros-catkin-action-history (remove action ros-catkin-action-history)))
+  (push action ros-catkin-action-history))
+
+(defun ros-catkin-completing-read-action-from-history ()
+  "Completing read function for `ros-catkin-action-history'."
+  (let* ((history-strings (mapcar* 'ros-catkin-display-action ros-catkin-action-history))
+         (action-string (completing-read "Action: " history-strings nil t))
+         (index (seq-position history-strings action-string)))
+    (nth index ros-catkin-action-history)))
 
 
 (provide 'ros)

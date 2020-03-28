@@ -5,6 +5,7 @@
 (depends-on "hydra")
 (depends-on "with-shell-interpreter")
 (depends-on "kv")
+(depends-on "cl-lib")
 
 (development
  (depends-on "ert")
