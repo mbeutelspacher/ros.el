@@ -156,7 +156,7 @@ If the current buffer does not lie in a ROS package return nil."
 
 (defun ros-catkin-display-action (action)
   "Display string which describes the ACTION."
-  (let* ((tramp-prefix (cdr(assoc "tramp-prefix" action)))
+  (let ((tramp-prefix (cdr(assoc "tramp-prefix" action)))
          (workspace (cdr(assoc "workspace" action)))
          (profile (cdr(assoc "profile" action)))
          (verb (cdr(assoc "verb" action)))
@@ -183,6 +183,24 @@ Further occurrences are removed.
          (action-string (completing-read "Action: " history-strings nil t))
          (index (seq-position history-strings action-string)))
     (nth index ros-catkin-action-history)))
+
+(defun ros-catkin-compile (action)
+  "Compile action and push it to `ros-catkin-action-history'.
+
+If called interactively prompt for action from history.
+"
+  (interactive (list(ros-catkin-completing-read-action-from-history)))
+  (let* ((tramp-prefix (cdr(assoc "tramp-prefix" action)))
+         (workspace (cdr(assoc "workspace" action)))
+         (profile (cdr(assoc "profile" action)))
+         (verb (cdr(assoc "verb" action)))
+         (flags (cdr(assoc "flags" action)))
+         (args (cdr(assoc "args" action)))
+         (post-cmd (cdr(assoc "post-cmd" action)))
+         (default-directory (concat tramp-prefix workspace)))
+    (ros-catkin-push-action-to-history action)
+    (compile (format "/bin/bash -c \"%s\""(ros-catkin-load-action action)))))
+
 
 
 (provide 'ros)
