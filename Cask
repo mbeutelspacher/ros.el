@@ -2,6 +2,8 @@
 
 (package-file "ros.el")
 (depends-on "s")
+(depends-on "hydra")
+(depends-on "with-shell-interpreter")
 
 (development
  (depends-on "ert")

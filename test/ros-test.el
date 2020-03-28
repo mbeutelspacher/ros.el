@@ -28,142 +28,34 @@
 (require 'ert)
 (require 'ros)
 
-(ert-deftest ros-test-default-workspace-is-used-when-no-workspace-is-set ()
-  (let ((ros-current-workspace nil)
-        (ros-default-workspace "~/catkin_ws"))
-    (should (string= (ros-current-workspace) ros-default-workspace))))
+;; (ert-deftest ros-source-workspace-command-is-correct()
+;; (let ((ros-current-workspace "~/git/catkin/ipa")
+;;       (ros-current-profile "debug"))
+;;   (should (string= (ros-source-workspace-command) "source ~/git/catkin/ipa/devel_debug/setup.bash"))))
 
-(ert-deftest ros-test-current-workspace-is-used-if-set ()
-  (let ((ros-default-workspace "~/catkin_ws")
-        (ros-current-workspace "~/catkin_ws2"))
-    (should (string= (ros-current-workspace) ros-current-workspace)))
-  )
+(ert-deftest ros-shell-command-to-string-on-host-machine
+    nil
+  (should (string= (s-trim (shell-command-to-string "ls /"))
+                   (ros-shell-command-to-string "ls /"))))
 
-(ert-deftest ros-test-shell-output-as-list ()
-  (should (cl-every 'string=
-                    (ros-shell-output-as-list "for VAR in 1 2 3 4 5; do; echo $VAR;done;")
-                    '("1" "2" "3" "4" "5"))))
+(ert-deftest ros-shell-command-to-string-on-remote-machine
+    nil
+  (let ((ros-current-tramp-prefix "/ssh:kontron:")
+        (ros-current-workspace "~/"))
+    (should (string= (ros-shell-command-to-string "hostname")
+                     "agv-57856.agv"))))
 
-(ert-deftest ros-test-package-list ()
-  (should (member "roscpp" (ros-packages))))
+(ert-deftest ros-shell-command-can-source-ros
+    nil
+  (should (string= (ros-shell-command-to-string "source /opt/ros/melodic/setup.bash")
+                   "")))
 
-(ert-deftest ros-sourcing-command-for-zsh()
-  (skip-unless (string= (getenv "SHELL") "/usr/bin/zsh"))
-  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.zsh")))
-
-(ert-deftest ros-sourcing-command-for-zsh()
-  (skip-unless (string= (getenv "SHELL") "/bin/bash"))
-  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.bash")))
-
-(ert-deftest ros-test-generic-list-msg  ()
-  (should (member "std_msgs/String" (ros-generic-list "msg")))
-  )
-(ert-deftest ros-generic-get-msg-returns-msg ()
-  (should (string= (s-trim (ros-generic-get-info "msg" "std_msgs/String")) "string data")))
-
-(ert-deftest ros-test-generic-list-topic ()
-  (with-roscore
-   (should (member "/rosout" (ros-generic-list "topic")))))
-
-(ert-deftest ros-test-generic-list-node ()
-  (with-roscore
-   (should (member "/rosout" (ros-generic-list "node")))))
-
-(ert-deftest ros-test-generic-list-services ()
-  (with-roscore
-   (should (member "/rosout/get_loggers" (ros-generic-list "service")))))
-
-
-(ert-deftest ros-insert-msg-python-import-statement()
-  (with-temp-buffer
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python--import-statement-do-not-import-twice()
-  (with-temp-buffer
-    (python-mode)
-    (insert "\n")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python-import-statement-with-same-package-already-present ()
-  (with-temp-buffer
-    (insert "from package.msg import TestMsg\nfoo\nbar")
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (buffer-string) "from package.msg import TestMsg, FooMsg\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python-import-statement-import-next-to-other-imports()
-  (with-temp-buffer
-    (insert "foo\nbar\nimport test\nfoo\nbar")
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (buffer-string) "foo\nbar\nimport test\nfrom package.msg import FooMsg\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement()
-  (with-temp-buffer
-    (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-do-not-import-twice()
-  (with-temp-buffer
-    (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-same-package()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg2")
-    (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <package/FooMsg.h>\n#include <package/FooMsg2.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-other-msg()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "std_msgs/FooMsg")
-    (ros-insert-import "msg" "other_msgs/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <std_msgs/FooMsg.h>\n#include <other_msgs/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-other-includes()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "foo\nbar\n")
-    (insert "#include <foo/bar.h>\n")
-    (insert "foo\nbar\n")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "foo\nbar\n#include <foo/bar.h>\n#include <package/FooMsg.h>\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-parse-package-xml-for-package-name-returns-correct-name()
-  (let ((path "/opt/ros/melodic/share/geometry_msgs/package.xml"))
-    (should (string= (ros-parse-package-xml-for-package path) "geometry_msgs"))
-    )
-  )
-
+(ert-deftest ros-catkin-locate-devel-works
+    nil
+  (let ((ros-current-workspace "~/git/catkin/ipa")
+        (ros-current-profile "debug"))
+    (should (string= (ros-catkin-locate-devel)
+                     (expand-file-name "~/git/catkin/ipa/devel_debug")))))
 
 
 (provide 'ros-test)
