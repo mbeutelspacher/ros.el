@@ -83,10 +83,14 @@
     (should (member "move_base" (kvalist->keys package-location-list)))
     (should (string= (cdr (assoc "move_base" package-location-list)) "/opt/ros/melodic/share/move_base"))))
 
+(ert-deftest ros-current-package nil
+  (let ((default-directory "/opt/ros/melodic/share/move_base/cmake"))
+    (should (string= (ros-current-package) "move_base"))))
+
+
 
 
 
 (provide 'ros-test)
 
 ;;; ros-test.el ends here
-

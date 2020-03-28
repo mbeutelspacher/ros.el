@@ -116,6 +116,20 @@ If `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   (interactive (list (ros-completing-read-ros-package-path)))
   (find-file (concat ros-current-tramp-prefix path)))
 
+(defun ros-current-package ()
+  "Return the name of the ROS package the current buffer lies in.
+If the current buffer does not lie in a ROS package return nil."
+  (let* ((package-path (locate-dominating-file default-directory "package.xml")))
+    (when package-path (ros-parse-package-xml-for-package (concat package-path "package.xml")))))
+
+(defun ros-parse-package-xml-for-package (path)
+  "Parse package.xml in PATH for package name."
+  (with-temp-buffer
+    (insert-file-contents path)
+    (string-match  "<name>\\(.*\\)</name>" (buffer-string))
+    (match-string 1 (buffer-string))))
+
+
 (provide 'ros)
 
 ;;; ros.el ends here
