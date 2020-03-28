@@ -101,7 +101,20 @@ If `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   "Return assocation list of all the available Ros packages and their paths."
   (kvplist->alist (split-string (ros-shell-command-to-string "rospack list" t))))
 
-(defun ros-packa)
+(defun ros-completing-read-ros-package()
+  "Completing read function for `ros-packages-list'."
+  (completing-read "Package: " (ros-packages-list) nil t))
+
+(defun ros-completing-read-ros-package-path()
+  "Completing read function for `ros-packages-location-list' locations."
+  (let* ((locations (ros-packages-location-list))
+         (package (completing-read "Package: " (kvalist->keys locations) nil t)))
+    (cdr (assoc package locations))))
+
+(defun ros-packages-go-to-package(path)
+  "Read package and open PATH to package in file manager."
+  (interactive (list (ros-completing-read-ros-package-path)))
+  (find-file (concat ros-current-tramp-prefix path)))
 
 (provide 'ros)
 

@@ -38,12 +38,12 @@
   (should (string= (s-trim (shell-command-to-string "ls /"))
                    (ros-shell-command-to-string "ls /"))))
 
-(ert-deftest ros-shell-command-to-string-on-remote-machine
-    nil
-  (let ((ros-current-tramp-prefix "/ssh:kontron:")
-        (ros-current-workspace "~/"))
-    (should (string= (ros-shell-command-to-string "hostname")
-                     "agv-57856.agv"))))
+;; (ert-deftest ros-shell-command-to-string-on-remote-machine
+;;     nil
+;;   (let ((ros-current-tramp-prefix "/ssh:kontron:")
+;;         (ros-current-workspace "~/"))
+;;     (should (string= (ros-shell-command-to-string "hostname")
+;;                      "agv-57856.agv"))))
 
 (ert-deftest ros-shell-command-can-source-ros
     nil
@@ -89,3 +89,4 @@
 (provide 'ros-test)
 
 ;;; ros-test.el ends here
+
