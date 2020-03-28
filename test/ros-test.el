@@ -128,7 +128,8 @@
   )
 
 (ert-deftest ros-catkin-push-action-to-history ()
-  (let* ((tramp-prefix nil)
+  (let* ((ros-catkin-action-history)
+         (tramp-prefix nil)
          (workspace "~/git/catkin/ipa")
          (profile "default")
          (verb "build")
