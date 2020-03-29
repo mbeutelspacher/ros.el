@@ -78,6 +78,11 @@
   (let ((ros-current-workspace "~/git/catkin/ipa"))
     (should (member "ipa_navigation_config" (ros-packages-list)))))
 
+(ert-deftest ros-list-packages nil
+  (let ((ros-current-workspace "~/git/catkin/ipa"))
+    (should (member "ipa_navigation_config" (ros-catkin-packages-list)))
+    (should (not(member "move_base" (ros-catkin-packages-list))))))
+
 (ert-deftest ros-list-package-locations nil
   (let ((package-location-list (ros-packages-location-list)))
     (should (member "move_base" (kvalist->keys package-location-list)))

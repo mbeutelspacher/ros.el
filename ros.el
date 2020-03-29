@@ -105,15 +105,30 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   "Return assocation list of all the available Ros packages and their paths."
   (kvplist->alist (split-string (ros-shell-command-to-string "rospack list" t))))
 
+
 (defun ros-completing-read-ros-package()
   "Completing read function for `ros-packages-list'."
-  (completing-read "Package: " (ros-packages-list) nil t nil nil (ros-current-package)))
+  (let ((collection (ros-packages-list))
+        (current-package (ros-current-package)))
+    (completing-read "Package: " collection nil t nil nil (when (member current-package collection) current-package))))
 
 (defun ros-completing-read-ros-package-path()
   "Completing read function for `ros-packages-location-list' locations."
   (let* ((locations (ros-packages-location-list))
-         (package (completing-read "Package: " (kvalist->keys locations) nil t)))
+         (collection (kvalist->keys locations))
+         (current-package (ros-current-package))
+         (package (completing-read "Package: " collection nil t nil nil (when (member current-package collection) current-package))))
     (cdr (assoc package locations))))
+
+(defun ros-catkin-packages-list ()
+  "List all the Ros packages in `ros-current-workspace'."
+  (ros-shell-command-to-list "catkin list --unformatted --quiet" t))
+
+(defun ros-catkin-completing-read-ros-package()
+  "Completing read function for `ros-catkin-packages-list'."
+  (let ((collection (ros-catkin-packages-list))
+        (current-package (ros-current-package)))
+    (completing-read "Package: " collection nil t nil nil (when (member current-package collection) current-package))))
 
 (defun ros-packages-go-to-package(path)
   "Read package and open PATH to package in file manager."
@@ -203,7 +218,7 @@ If called interactively prompt for action from history."
 
 (defun ros-catkin-run-build (package &optional flags)
   "Run a build action to build PACKAGE with FLAGS."
-  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-build-action :package package :flags flags)))
 
 (defun ros-catkin-run-build-current-workspace (&optional flags)
@@ -217,7 +232,7 @@ If called interactively prompt for action from history."
 
 (defun ros-catkin-run-test (package &optional flags)
   "Run a-test action to-test PACKAGE with FLAGS."
-  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-test-action :package package :flags flags)))
 
 (define-infix-argument ros-catkin-build-transient:--jobs()
@@ -255,7 +270,7 @@ If called interactively prompt for action from history."
 
 (defun ros-catkin-run-clean (package &optional flags)
   "Run a clean action to clean PACKAGE with FLAGS."
-  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
   (ros-catkin-compile (ros-catkin-clean-action :package package :flags flags)))
 
 (defun ros-catkin-run-clean-current-workspace (&optional flags)
