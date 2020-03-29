@@ -151,7 +151,7 @@ If the current buffer does not lie in a ROS package return nil."
          (args (cdr(assoc "args" action)))
          (post-cmd (cdr(assoc "post-cmd" action)))
          (source-command (ros-shell-source-command)))
-    (concat source-command " && catkin " verb " --profile " ros-current-profile " " (when flags (concat flags " ")) args (when post-cmd (concat " && " post-cmd)))))
+    (concat source-command " && catkin " verb " --profile " ros-current-profile " " (when flags (concat (string-join flags " ") " ")) args (when post-cmd (concat " && " post-cmd)))))
 
 (defvar ros-catkin-action-history '() "List of catkin actions sorted by recenctness.")
 
@@ -164,7 +164,7 @@ If the current buffer does not lie in a ROS package return nil."
          (flags (cdr(assoc "flags" action)))
          (args (cdr(assoc "args" action)))
          (post-cmd (cdr(assoc "post-cmd" action))))
-    (format "%s | %s | %s | catkin %s %s %s %s" (if tramp-prefix tramp-prefix "localhost") workspace profile verb flags args (when post-cmd (concat "&& " post-cmd)))))
+    (format "%s | %s | %s | catkin %s %s %s %s" (if tramp-prefix tramp-prefix "localhost") workspace profile verb (string-join flags " ") args (when post-cmd (concat "&& " post-cmd)))))
 
 (defun ros-catkin-compare-actions (action1 action2)
   "Comparison function to compare ACTION1 and ACTION2."
