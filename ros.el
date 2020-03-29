@@ -35,6 +35,7 @@
 (require 's)
 (require 'kv)
 (require 'cl-lib)
+(require 'transient)
 
 (defgroup ros nil "Related to the Robot Operating System."
   :group 'external)
@@ -195,7 +196,53 @@ If called interactively prompt for action from history."
     (ros-catkin-push-action-to-history action)
     (compile (format "/bin/bash -c \"%s\""(ros-catkin-load-action action)))))
 
+(cl-defun ros-catkin-build-action (&key package flags)
+"Generate a build action to build PACKAGE with FLAGS."
+(ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args package :flags flags :post-cmd nil))
 
+(defun ros-catkin-run-build (package &optional flags)
+  "Run a build action to build PACKAGE with FLAGS."
+  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (ros-catkin-compile (ros-catkin-build-action :package package :flags flags)))
+
+(defun ros-catkin-run-build-current-package (&optional flags)
+  "Run a build action to build the current package with FLAGS."
+  (interactive (list (transient-args 'ros-catkin-build-transient)))
+  (ros-catkin-run-build (ros-current-package) flags))
+
+(defun ros-catkin-run-build-current-workspace (&optional flags)
+  "Run a build action to build the current workspace with FLAGS."
+  (interactive (list (transient-args 'ros-catkin-build-transient)))
+  (ros-catkin-run-build " " flags))
+
+(define-infix-argument ros-catkin-build-transient:--jobs()
+  :description "Jobs"
+  :class 'transient-option
+  :shortarg "-j"
+  :argument "--jobs "
+  :reader 'transient-read-number-N+)
+
+(define-infix-argument ros-catkin-build-transient:--limit-status-rate()
+  :description "Limit of the update rate of the status"
+  :class 'transient-option
+  :shortarg "-lr"
+  :argument "--limit-status-rate "
+  :reader 'transient-read-number-N+)
+
+(define-transient-command ros-catkin-build-transient ()
+  "Transient command for catkin build."
+  ["Arguments"
+   ("-c" "continue" "--continue")
+   ("-fc" "force-cmake" "--force-cmake")
+   ("-v" "verbose" "--verbose")
+   (ros-catkin-build-transient:--limit-status-rate)
+   (ros-catkin-build-transient:--jobs)
+   ]
+  ["Actions"
+   ("p" "current package" ros-catkin-run-build-current-package)
+   ("P" "some package" ros-catkin-run-build)
+   ("w" "current workspace" ros-catkin-run-build-current-workspace)
+   ])
 
 (provide 'ros)
 

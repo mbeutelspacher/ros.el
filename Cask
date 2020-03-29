@@ -1,11 +1,12 @@
 (source melpa)
 
 (package-file "ros.el")
-(depends-on "s")
-(depends-on "hydra")
-(depends-on "with-shell-interpreter")
-(depends-on "kv")
 (depends-on "cl-lib")
+(depends-on "hydra")
+(depends-on "kv")
+(depends-on "s")
+(depends-on "transient")
+(depends-on "with-shell-interpreter")
 
 (development
  (depends-on "ert")

@@ -150,6 +150,23 @@
       (should (eq (car ros-catkin-action-history) action)))))
 
 
+(ert-deftest ros-catkin-build-action
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-build-action :package "ipa_eband"
+                                          :flags '("-c"))))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "build"))
+    (should (string= (cdr (assoc "args" action)) "ipa_eband"))
+    (should (string= (car(cdr (assoc "flags" action))) "-c"))
+    (should (eq (cdr (assoc "post-cmd" action)) nil))))
+
+
+
     (provide 'ros-test)
 
 ;;; ros-test.el ends here
