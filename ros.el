@@ -33,6 +33,7 @@
 
 (require 'with-shell-interpreter)
 (require 's)
+(require 'subr-x)
 (require 'kv)
 (require 'cl-lib)
 (require 'transient)
@@ -205,15 +206,19 @@ If called interactively prompt for action from history."
   (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-build-action :package package :flags flags)))
 
-(defun ros-catkin-run-build-current-package (&optional flags)
-  "Run a build action to build the current package with FLAGS."
-  (interactive (list (transient-args 'ros-catkin-build-transient)))
-  (ros-catkin-run-build (ros-current-package) flags))
-
 (defun ros-catkin-run-build-current-workspace (&optional flags)
   "Run a build action to build the current workspace with FLAGS."
   (interactive (list (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-run-build " " flags))
+
+(cl-defun ros-catkin-test-action (&key package flags)
+  "Generate a test action to test PACKAGE with FLAGS."
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args run_tests" package) :flags flags :post-cmd (concat "catkin_test_results build/" package)))
+
+(defun ros-catkin-run-test (package &optional flags)
+  "Run a-test action to-test PACKAGE with FLAGS."
+  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (ros-catkin-compile (ros-catkin-test-action :package package :flags flags)))
 
 (define-infix-argument ros-catkin-build-transient:--jobs()
   :description "Jobs"
@@ -239,9 +244,9 @@ If called interactively prompt for action from history."
    (ros-catkin-build-transient:--jobs)
    ]
   ["Actions"
-   ("p" "some package" ros-catkin-run-build)
-   ("P" "current package" ros-catkin-run-build-current-package)
-   ("w" "current workspace" ros-catkin-run-build-current-workspace)
+   ("p" "Build a package" ros-catkin-run-build)
+   ("w" "Build current workspace" ros-catkin-run-build-current-workspace)
+   ("t" "Test a package" ros-catkin-run-test)
    ])
 
 (cl-defun ros-catkin-clean-action (&key package flags)
@@ -252,11 +257,6 @@ If called interactively prompt for action from history."
   "Run a clean action to clean PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
   (ros-catkin-compile (ros-catkin-clean-action :package package :flags flags)))
-
-(defun ros-catkin-run-clean-current-package (&optional flags)
-  "Run a clean action to clean the current package with FLAGS."
-  (interactive (list (transient-args 'ros-catkin-clean-transient)))
-  (ros-catkin-run-clean (ros-current-package) flags))
 
 (defun ros-catkin-run-clean-current-workspace (&optional flags)
   "Run a clean action to clean the current workspace with FLAGS."
@@ -275,10 +275,11 @@ If called interactively prompt for action from history."
    ("-o" "remove orphans" "--orphans")
    ]
   ["Actions"
-   ("p" "some package" ros-catkin-run-clean)
-   ("P" "current package" ros-catkin-run-clean-current-package)
-   ("w" "current workspace" ros-catkin-run-clean-current-workspace)
+   ("p" "Clean a package" ros-catkin-run-clean)
+   ("w" "Clean current workspace" ros-catkin-run-clean-current-workspace)
    ])
+
+
 
 
 (provide 'ros)

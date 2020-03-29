@@ -180,6 +180,19 @@
     (should (string= (car(cdr (assoc "flags" action))) "-c"))
     (should (eq (cdr (assoc "post-cmd" action)) nil))))
 
+(ert-deftest ros-catkin-test-action
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-test-action :package "ipa_eband" :flags '("-j 10"))))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "build"))
+    (should (string= (cdr (assoc "args" action)) "ipa_eband --no-deps --catkin-make-args run_tests"))
+    (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
+    (should (string= (cdr (assoc "post-cmd" action)) "catkin_test_results build/ipa_eband"))))
 
     (provide 'ros-test)
 
