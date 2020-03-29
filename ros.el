@@ -58,14 +58,14 @@ Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
   (let ((command (if source (format "%s && %s" (ros-shell-source-command) cmd) cmd)))
   (s-trim (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
-            (shell-command-to-string (format "/bin/bash -c \"%s\"" command))))))
+            (shell-command-to-string (format "/bin/bash  -c \"%s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" command))))))
 
 (defun ros-shell-command-to-list (cmd &optional source)
   "Source `ros-current-workspace' if SOURCE run CMD and return output as list.
 
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
-    (split-string (ros-shell-command-to-string cmd source)))
+  (split-string (ros-shell-command-to-string cmd source) "\n" t "[\f\t\n\r\v\\]+"))
 
 
 (defun ros-catkin-locate-devel ()
