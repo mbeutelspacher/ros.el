@@ -5,7 +5,7 @@
 ;; Author: Max Beutelspacher <max.beutelspacher@mailbox.org>
 ;; URL: https://github.com/DerBeutlin/ros.el
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24.4"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -50,19 +50,19 @@
 (defvar ros-workspaces '("localhost" . nil) "Assoc list of candidates for `ros-current-workspace' grouped by `ros-current-tramp-prefix'.")
 
 (defun ros-shell-command-to-string (cmd &optional source)
-  "Source `ros-current-workspace' if SOURCE is `t',run CMD and return output as string.
+  "Source `ros-current-workspace' if SOURCE run CMD and return output as string.
 
-Run in `ros-current-workspace' on `ros-current-tramp-prefix' or the host system if `ros-current-tramp-prefix' is nil.
-"
+Run in `ros-current-workspace' on `ros-current-tramp-prefix'
+or the host system if `ros-current-tramp-prefix' is nil."
   (let ((command (if source (format "%s && %s" (ros-shell-source-command) cmd) cmd)))
   (s-trim (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
             (shell-command-to-string (format "/bin/bash -c \"%s\"" command))))))
 
 (defun ros-shell-command-to-list (cmd &optional source)
-  "Source `ros-current-workspace' if SOURCE is `t',run CMD and return output as list.
+  "Source `ros-current-workspace' if SOURCE run CMD and return output as list.
 
-Run in `ros-current-workspace' on `ros-current-tramp-prefix' or the host system if `ros-current-tramp-prefix' is nil.
-"
+Run in `ros-current-workspace' on `ros-current-tramp-prefix'
+or the host system if `ros-current-tramp-prefix' is nil."
     (split-string (ros-shell-command-to-string cmd source)))
 
 
@@ -71,9 +71,10 @@ Run in `ros-current-workspace' on `ros-current-tramp-prefix' or the host system 
   (s-trim (ros-shell-command-to-string (concat "catkin locate -d --profile " ros-current-profile))))
 
 (defun ros-shell-source-command ()
-  "Return the source command to source `ros-current-workspace' with `ros-current-profile'.
+  "Return the source command to source workspace.
 
-If `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash instead."
+Source `ros-current-workspace' with `ros-current-profile' or
+if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash instead."
   (if ros-current-workspace
       (format "source %s/setup.bash"
               (ros-catkin-locate-devel))
@@ -131,7 +132,7 @@ If the current buffer does not lie in a ROS package return nil."
     (match-string 1 (buffer-string))))
 
 (cl-defun ros-catkin-dump-action (&key tramp-prefix workspace profile verb flags args post-cmd)
-  "Dump TRAMP-PREFIX WORKSPACE PROFILE and COMMAND in a association list."
+  "Dump action keys in a association list."
   (list (cons "tramp-prefix" tramp-prefix)
    (cons "workspace"  workspace)
    (cons "profile" profile)
@@ -172,31 +173,24 @@ If the current buffer does not lie in a ROS package return nil."
 (defun ros-catkin-push-action-to-history (action)
   "Push ACTION to the front of `ros-catkin-action-history'.
 
-Further occurrences are removed.
-"
+Further occurrences are removed."
   (when (member action ros-catkin-action-history) (setq ros-catkin-action-history (remove action ros-catkin-action-history)))
   (push action ros-catkin-action-history))
 
 (defun ros-catkin-completing-read-action-from-history ()
   "Completing read function for `ros-catkin-action-history'."
-  (let* ((history-strings (mapcar* 'ros-catkin-display-action ros-catkin-action-history))
+  (let* ((history-strings (cl-mapcar 'ros-catkin-display-action ros-catkin-action-history))
          (action-string (completing-read "Action: " history-strings nil t))
          (index (seq-position history-strings action-string)))
     (nth index ros-catkin-action-history)))
 
 (defun ros-catkin-compile (action)
-  "Compile action and push it to `ros-catkin-action-history'.
+  "Compile ACTION and push it to `ros-catkin-action-history'.
 
-If called interactively prompt for action from history.
-"
+If called interactively prompt for action from history."
   (interactive (list(ros-catkin-completing-read-action-from-history)))
   (let* ((tramp-prefix (cdr(assoc "tramp-prefix" action)))
          (workspace (cdr(assoc "workspace" action)))
-         (profile (cdr(assoc "profile" action)))
-         (verb (cdr(assoc "verb" action)))
-         (flags (cdr(assoc "flags" action)))
-         (args (cdr(assoc "args" action)))
-         (post-cmd (cdr(assoc "post-cmd" action)))
          (default-directory (concat tramp-prefix workspace)))
     (ros-catkin-push-action-to-history action)
     (compile (format "/bin/bash -c \"%s\""(ros-catkin-load-action action)))))
