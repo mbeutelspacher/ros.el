@@ -244,6 +244,43 @@ If called interactively prompt for action from history."
    ("w" "current workspace" ros-catkin-run-build-current-workspace)
    ])
 
+(cl-defun ros-catkin-clean-action (&key package flags)
+  "Generate a clean action to clean PACKAGE with FLAGS."
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "clean" :args package :flags flags :post-cmd nil))
+
+(defun ros-catkin-run-clean (package &optional flags)
+  "Run a clean action to clean PACKAGE with FLAGS."
+  (interactive (list (ros-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
+  (ros-catkin-compile (ros-catkin-clean-action :package package :flags flags)))
+
+(defun ros-catkin-run-clean-current-package (&optional flags)
+  "Run a clean action to clean the current package with FLAGS."
+  (interactive (list (transient-args 'ros-catkin-clean-transient)))
+  (ros-catkin-run-clean (ros-current-package) flags))
+
+(defun ros-catkin-run-clean-current-workspace (&optional flags)
+  "Run a clean action to clean the current workspace with FLAGS."
+  (interactive (list (transient-args 'ros-catkin-clean-transient)))
+  (ros-catkin-run-clean " " flags))
+
+(define-transient-command ros-catkin-clean-transient ()
+  "Transient command for catkin clean."
+  ["Arguments"
+   ("-v" "verbose" "--verbose")
+   ("-n" "dry-run" "--dry-run")
+   ("-l" "restrict to log space" "--logs")
+   ("-b" "restrict to build space" "--build")
+   ("-d" "restrict to devel space" "--devel")
+   ("-i" "restrict to install space" "--install")
+   ("-o" "remove orphans" "--orphans")
+   ]
+  ["Actions"
+   ("p" "some package" ros-catkin-run-clean)
+   ("P" "current package" ros-catkin-run-clean-current-package)
+   ("w" "current workspace" ros-catkin-run-clean-current-workspace)
+   ])
+
+
 (provide 'ros)
 
 ;;; ros.el ends here
