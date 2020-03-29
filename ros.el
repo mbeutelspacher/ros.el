@@ -106,7 +106,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
 
 (defun ros-completing-read-ros-package()
   "Completing read function for `ros-packages-list'."
-  (completing-read "Package: " (ros-packages-list) nil t))
+  (completing-read "Package: " (ros-packages-list) nil t nil nil (ros-current-package)))
 
 (defun ros-completing-read-ros-package-path()
   "Completing read function for `ros-packages-location-list' locations."
@@ -239,8 +239,8 @@ If called interactively prompt for action from history."
    (ros-catkin-build-transient:--jobs)
    ]
   ["Actions"
-   ("p" "current package" ros-catkin-run-build-current-package)
-   ("P" "some package" ros-catkin-run-build)
+   ("p" "some package" ros-catkin-run-build)
+   ("P" "current package" ros-catkin-run-build-current-package)
    ("w" "current workspace" ros-catkin-run-build-current-workspace)
    ])
 
