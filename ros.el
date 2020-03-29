@@ -165,7 +165,7 @@ If the current buffer does not lie in a ROS package return nil."
          (flags (cdr(assoc "flags" action)))
          (args (cdr(assoc "args" action)))
          (post-cmd (cdr(assoc "post-cmd" action))))
-    (format "%s | %s | %s | catkin %s %s %s %s" (if tramp-prefix tramp-prefix "localhost") workspace profile verb (string-join flags " ") args (when post-cmd (concat "&& " post-cmd)))))
+    (format "%s | %s | %s | catkin %s %s %s %s" (if tramp-prefix tramp-prefix "localhost") workspace profile verb (string-join flags " ") args (if post-cmd (concat "&& " post-cmd) ""))))
 
 (defun ros-catkin-compare-actions (action1 action2)
   "Comparison function to compare ACTION1 and ACTION2."
