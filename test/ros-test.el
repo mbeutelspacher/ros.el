@@ -199,6 +199,47 @@
     (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
     (should (string= (cdr (assoc "post-cmd" action)) "catkin_test_results build/ipa_eband"))))
 
+(ert-deftest ros-generic-list-type-correct()
+  (should-error (ros-generic-list "foo")))
+
+(ert-deftest ros-generic-list-msg ()
+    (should (member "std_msgs/String" (ros-generic-list "msg"))))
+
+(ert-deftest ros-generic-list-srv ()
+  (should (member "std_srvs/Empty" (ros-generic-list "srv"))))
+
+(ert-deftest ros-generic-list-topic ()
+  (should (member "/rosout" (ros-generic-list "topic"))))
+
+(ert-deftest ros-generic-list-service ()
+  (should (member "/rosout/get_loggers" (ros-generic-list "service"))))
+
+(ert-deftest ros-generic-list-node ()
+  (should (member "/rosout" (ros-generic-list "node"))))
+
+(ert-deftest ros-generic-inf-type-correct()
+  (should-error (ros-generic-info "foo" "foobar")))
+
+(ert-deftest ros-generic-info-msg ()
+  (should (string-match-p (regexp-quote "string data") (ros-generic-info "msg" "std_msgs/String"))))
+
+(ert-deftest ros-generic-info-srv ()
+  (should (string-match-p (regexp-quote "bool data") (ros-generic-info "srv" "std_srvs/SetBool"))))
+
+(ert-deftest ros-generic-info-srv-with-flags ()
+  (should (string-match-p (regexp-quote "bool data # e.g. for hardware enabling / disabling") (ros-generic-info "srv" "std_srvs/SetBool" '("-r")))))
+
+(ert-deftest ros-generic-info-topic ()
+  (should (string-match-p (regexp-quote "Type: rosgraph_msgs/Log") (ros-generic-info "topic" "/rosout"))))
+
+(ert-deftest ros-generic-info-node ()
+  (should (string-match-p (regexp-quote " * /rosout_agg [rosgraph_msgs/Log]") (ros-generic-info "node" "/rosout"))))
+
+(ert-deftest ros-generic-info-service ()
+  (should (string-match-p (regexp-quote "Type: roscpp/GetLoggers") (ros-generic-info "service" "/rosout/get_loggers"))))
+
+
+
     (provide 'ros-test)
 
 ;;; ros-test.el ends here

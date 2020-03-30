@@ -294,6 +294,45 @@ If called interactively prompt for action from history."
    ("w" "Clean current workspace" ros-catkin-run-clean-current-workspace)
    ])
 
+(defun ros-generic-assert-type (type)
+  "Assert that TYPE is a valid type."
+  (let ((candidates '("msg" "srv" "topic" "node" "service")))
+    (when (not(member type candidates))
+      (error (format "%s is not element of %s" type (string-join candidates ", "))))))
+
+(defun ros-generic-list (type)
+  "Return list of Ros TYPE.
+
+TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
+  (ros-generic-assert-type type)
+  (ros-shell-command-to-list (format "ros%s list" type)))
+
+(defun ros-generic-completing-read (type)
+  "Prompts for Ros TYPE.
+
+TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
+  (completing-read (format "%s: " type) (ros-generic-list type) nil t))
+
+(defun ros-generic-info (type name &optional flags)
+  "Return info about NAME of type TYPE with FLAGS.
+
+TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
+  (ros-generic-assert-type type)
+  (let ((command (if (or(string= type "msg")(string= type "srv")) "show" "info")))
+    (ros-shell-command-to-string (format "ros%s %s %s %s" type command (string-join flags " ") name) t)))
+
+(defun ros-generic-show-info (type name)
+  "Show info about NAME of type TYPE in new buffer."
+  (let ((buffer-name (format "* ros-%s: %s" type name)))
+    (when (get-buffer buffer-name) (kill-buffer buffer-name))
+    (pop-to-buffer buffer-name))
+  (erase-buffer)
+  (insert (ros-generic-info type name))
+  (ros-info-mode))
+
+(define-derived-mode ros-info-mode messages-buffer-mode "ros-info-mode"
+  "major mode for displaying ros info messages")
+
 
 
 
