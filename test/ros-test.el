@@ -238,8 +238,22 @@
 (ert-deftest ros-generic-info-service ()
   (should (string-match-p (regexp-quote "Type: roscpp/GetLoggers") (ros-generic-info "service" "/rosout/get_loggers"))))
 
+(ert-deftest ros-topic-service-get-type-correct()
+(should-error (ros-topic-service-get-type "foo" "bar")))
 
+(ert-deftest ros-topic-service-get-type-topic()
+  (should (string=(ros-topic-service-get-type "topic" "/rosout") "rosgraph_msgs/Log")))
 
-    (provide 'ros-test)
+(ert-deftest ros-topic-service-get-type-service()
+  (should (string=(ros-topic-service-get-type "service" "/rosout/get_loggers") "roscpp/GetLoggers")))
+
+(ert-deftest ros-topic-list-by-type ()
+  (let ((topic-list (ros-topic-list-by-type)))
+    (should (member "rosgraph_msgs/Log" (kvalist->keys topic-list)))))
+
+(ert-deftest ros-topic-filter-by-type ()
+  (should (member "/rosout" (ros-topic-filter-by-type "rosgraph_msgs/Log"))))
+
+(provide 'ros-test)
 
 ;;; ros-test.el ends here

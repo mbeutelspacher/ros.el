@@ -67,6 +67,24 @@ Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
   (split-string (ros-shell-command-to-string cmd source) "\n" t "[\f\t\n\r\v\\]+"))
 
+(defun ros-process-run (cmd buffer &optional source)
+  "Source `ros-current-workspace' if SOURCE run CMD and print output in BUFFER.
+
+Run in `ros-current-workspace' on `ros-current-tramp-prefix'
+or the host system if `ros-current-tramp-prefix' is nil."
+  (let* ((command (if source (format "%s && %s" (ros-shell-source-command) cmd) cmd))
+        (process (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
+                   (start-process-shell-command buffer buffer (format "/bin/bash  -c \"%s\"" command)))))
+    
+    (view-buffer-other-window (process-buffer process))
+    (ros-process-mode)))
+
+(defun ros-process-kill-buffer-process (buffer)
+  "Kill the process associated with BUFFER."
+  (interactive (list (current-buffer)))
+  (let ((process (get-buffer-process buffer)))
+    (kill-process process)))
+
 
 (defun ros-catkin-locate-devel ()
   "Return the path to the devel folder in `ros-current-workspace' with profile `ros-current-profile'."
@@ -236,14 +254,14 @@ If called interactively prompt for action from history."
   (ros-catkin-compile (ros-catkin-test-action :package package :flags flags)))
 
 (define-infix-argument ros-catkin-build-transient:--jobs()
-  :description "Jobs"
+  :description "maximal number of jobs"
   :class 'transient-option
   :shortarg "-j"
   :argument "--jobs "
   :reader 'transient-read-number-N+)
 
 (define-infix-argument ros-catkin-build-transient:--limit-status-rate()
-  :description "Limit of the update rate of the status"
+  :description "limit of the update rate of the status"
   :class 'transient-option
   :shortarg "-lr"
   :argument "--limit-status-rate "
@@ -252,8 +270,8 @@ If called interactively prompt for action from history."
 (define-transient-command ros-catkin-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
-   ("-c" "continue" "--continue")
-   ("-fc" "force-cmake" "--force-cmake")
+   ("-c" "continue on failure" "--continue-on-failure")
+   ("-fc" "runs cmake explicitly for each catkin package" "--force-cmake")
    ("-v" "verbose" "--verbose")
    (ros-catkin-build-transient:--limit-status-rate)
    (ros-catkin-build-transient:--jobs)
@@ -305,13 +323,15 @@ If called interactively prompt for action from history."
 
 TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
   (ros-generic-assert-type type)
-  (ros-shell-command-to-list (format "ros%s list" type)))
+  (ros-shell-command-to-list (format "ros%s list" type) t))
 
 (defun ros-generic-completing-read (type)
   "Prompts for Ros TYPE.
 
 TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
-  (completing-read (format "%s: " type) (ros-generic-list type) nil t))
+  (let ((collection (ros-generic-list type))
+        (thing-at-point (symbol-name(symbol-at-point))))
+    (completing-read (format "%s: " type) collection nil t nil nil (when (member thing-at-point collection) thing-at-point))))
 
 (defun ros-generic-info (type name &optional flags)
   "Return info about NAME of type TYPE with FLAGS.
@@ -333,7 +353,107 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
 (define-derived-mode ros-info-mode messages-buffer-mode "ros-info-mode"
   "major mode for displaying ros info messages")
 
+(define-derived-mode ros-process-mode fundamental-mode "ros-process-mode"
+  "major mode when executing ros processes"
+  (let ((process (get-buffer-process (current-buffer))))
+    (when process (set-process-filter process 'ros-process-filter))))
 
+(defun ros-process-filter (process string)
+  "Function to automatically scroll in the ros-proces-mode.
+The STRING of the output of PROCESS will be inserted into the buffer
+and the point will be kept at the latest output."
+  (let ((buffer (process-buffer process))
+        (mark (process-mark process)))
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (goto-char mark)
+        (insert string)
+        (set-marker mark (point))))))
+
+(defun ros-topic-echo (topic &optional flags)
+  "Prompt for TOPIC and echo this topic with FLAGS."
+  (interactive (list (ros-generic-completing-read "topic") (transient-args 'ros-topic-echo-transient)))
+  (let ((command (format "rostopic echo %s %s" (string-join flags " ") topic)))
+    (message command)
+    (ros-process-run command (format "*%s*" command))))
+
+(defun ros-topic-echo-filtered ( &optional flags)
+  "Prompt for TYPE and then for topic and echo this topic with FLAGS."
+  (interactive (list (transient-args 'ros-topic-echo-transient)))
+  (let*((type-topic-list (ros-topic-list-by-type))
+        (type (completing-read "Type: " (delq nil(delete-dups(kvalist->keys type-topic-list))) nil t))
+        (topic (completing-read "Topic: " (ros-topic-filter-by-type type type-topic-list) nil t)))
+    (ros-topic-echo topic flags)))
+
+(defun ros-transient-read-existing-file (prompt _initial-input _history)
+  "Read an existing file."
+  (expand-file-name (read-file-name prompt nil nil t)))
+
+
+(define-infix-argument ros-topic-echo-transient:--bag()
+  :description "echo messages from .bag file"
+  :class 'transient-option
+  :shortarg "-b"
+  :argument "--bag="
+  :reader 'ros-transient-read-existing-file)
+
+(define-infix-argument ros-topic-echo-transient:--num_width()
+  :description "fixed width for numeric values"
+  :class 'transient-option
+  :shortarg "-w"
+  :argument "-w "
+  :reader 'transient-read-number-N+)
+
+(define-infix-argument ros-topic-echo-transient:--count()
+  :description "number of messages to echo"
+  :class 'transient-option
+  :shortarg "-n"
+  :argument "-n "
+  :reader 'transient-read-number-N+)
+
+(define-transient-command ros-topic-echo-transient ()
+  "Transient command for ros-topic-echo."
+  ["Arguments"
+   (ros-topic-echo-transient:--bag)
+   ("-p" "echo in a plotting friendly format" "-p")
+   (ros-topic-echo-transient:--num_width)
+   ("-ns" "omit strings" "--nostr")
+   ("-na" "omit arrays" "--noarr")
+   ("-c" "clear screen before printing message" "--clear")
+   ("-a" "display all message in bag, only valid with -b option" "--all")
+   (ros-topic-echo-transient:--count)
+   ("-o" "display time as offsets from current time (in seconds)" "--offset")
+   ]
+  ["Actions"
+   ("e" "echo" ros-topic-echo)
+   ("f" "echo filtered" ros-topic-echo-filtered)
+   ])
+
+(defun ros-node-pid (node)
+  "Get PID for Ros NODE."
+  (ros-shell-command-to-string (format"rosnode info %s 2>/dev/null | grep Pid| cut -d' ' -f2" node)))
+
+(defun ros-topic-service-assert-type (type)
+  "Assert that TYPE is a valid type."
+  (let ((candidates '("topic" "service")))
+    (when (not(member type candidates))
+      (error (format "%s is not element of %s" type (string-join candidates ", "))))))
+
+(defun ros-topic-service-get-type (type name)
+  "Get type of topic or service (TYPE) with NAME."
+  (ros-topic-service-assert-type type)
+  (ros-shell-command-to-string (format "ros%s type %s" type name)))
+
+(defun ros-topic-list-by-type()
+  "Return list of type-topic associations."
+  (let* ((output (ros-shell-command-to-string (format "rostopic list -v")))
+         (matches (s-match-strings-all "\\* \\(/.*\\) \\[\\(.*\\)]*\]" output)))
+    (mapcar (lambda (x) (cons (cl-second(cdr x)) (cl-first(cdr x)))) matches)))
+
+(defun ros-topic-filter-by-type (type &optional type-topic-list)
+  "Return topics with type TYPE."
+  (let ((type-topic-list (if type-topic-list type-topic-list (ros-topic-list-by-type))))
+    (mapcar 'cdr(kvalist->filter-keys type-topic-list type))))
 
 
 (provide 'ros)
