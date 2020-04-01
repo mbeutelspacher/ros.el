@@ -79,6 +79,7 @@ or the host system if `ros-current-tramp-prefix' is nil."
     (view-buffer-other-window (process-buffer process))
     (ros-process-mode)))
 
+;;;###autoload
 (defun ros-process-kill-buffer-process (buffer)
   "Kill the process associated with BUFFER."
   (interactive (list (current-buffer)))
@@ -105,6 +106,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   (let ((ros-current-workspace workspace))
     (ros-shell-command-to-list "catkin profile list -u")))
 
+;;;###autoload
 (defun ros-set-workspace ()
   "Read `ros-current-tramp prefix', `ros-current-workspace' and `ros-current-profile' from `ros-workspaces' and set the corresponding variables."
   (interactive)
@@ -148,6 +150,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
         (current-package (ros-current-package)))
     (completing-read "Package: " collection nil t nil nil (when (member current-package collection) current-package))))
 
+;;;###autoload
 (defun ros-packages-go-to-package(path)
   "Read package and open PATH to package in file manager."
   (interactive (list (ros-completing-read-ros-package-path)))
@@ -219,6 +222,7 @@ Further occurrences are removed."
          (index (seq-position history-strings action-string)))
     (nth index ros-catkin-action-history)))
 
+;;;###autoload
 (defun ros-catkin-compile (action)
   "Compile ACTION and push it to `ros-catkin-action-history'.
 
@@ -234,11 +238,13 @@ If called interactively prompt for action from history."
 "Generate a build action to build PACKAGE with FLAGS."
 (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args package :flags flags :post-cmd nil))
 
+;;;###autoload
 (defun ros-catkin-run-build (package &optional flags)
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-build-action :package package :flags flags)))
 
+;;;###autoload
 (defun ros-catkin-run-build-current-workspace (&optional flags)
   "Run a build action to build the current workspace with FLAGS."
   (interactive (list (transient-args 'ros-catkin-build-transient)))
@@ -248,6 +254,7 @@ If called interactively prompt for action from history."
   "Generate a test action to test PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args run_tests" package) :flags flags :post-cmd (concat "catkin_test_results build/" package)))
 
+;;;###autoload
 (defun ros-catkin-run-test (package &optional flags)
   "Run a-test action to-test PACKAGE with FLAGS."
   (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
@@ -267,6 +274,7 @@ If called interactively prompt for action from history."
   :argument "--limit-status-rate "
   :reader 'transient-read-number-N+)
 
+;;;###autoload
 (define-transient-command ros-catkin-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
@@ -286,16 +294,19 @@ If called interactively prompt for action from history."
   "Generate a clean action to clean PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "clean" :args package :flags flags :post-cmd nil))
 
+;;;###autoload
 (defun ros-catkin-run-clean (package &optional flags)
   "Run a clean action to clean PACKAGE with FLAGS."
   (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
   (ros-catkin-compile (ros-catkin-clean-action :package package :flags flags)))
 
+;;;###autoload
 (defun ros-catkin-run-clean-current-workspace (&optional flags)
   "Run a clean action to clean the current workspace with FLAGS."
   (interactive (list (transient-args 'ros-catkin-clean-transient)))
   (ros-catkin-run-clean " " flags))
 
+;;;###autoload
 (define-transient-command ros-catkin-clean-transient ()
   "Transient command for catkin clean."
   ["Arguments"
@@ -350,6 +361,38 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
   (insert (ros-generic-info type name))
   (ros-info-mode))
 
+;;;###autoload
+(defun ros-msg-show (msg)
+  "Prompt for MSG and show structure."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-generic-show-info "msg" msg))
+
+;;;###autoload
+(defun ros-topic-show (topic)
+  "Prompt for TOPIC and show subscribers and publishers."
+  (interactive (list (ros-generic-completing-read "topic")))
+  (ros-generic-show-info "topic" topic))
+
+
+;;;###autoload
+(defun ros-service-show (service)
+  "Prompt for active SERVICE and show structure."
+  (interactive (list (ros-generic-completing-read "service")))
+  (ros-generic-show-info "service" service))
+
+;;;###autoload
+(defun ros-srv-show (service)
+  "Prompt for (not necessarily active) SERVICE and show structure."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-generic-show-info "srv" service))
+
+;;;###autoload
+(defun ros-node-show (node)
+  "Prompt for NODE and show published and subscribed topics and provided services."
+  (interactive (list (ros-generic-completing-read "node")))
+  (ros-generic-show-info "node" node))
+
+
 (define-derived-mode ros-info-mode messages-buffer-mode "ros-info-mode"
   "major mode for displaying ros info messages")
 
@@ -370,6 +413,7 @@ and the point will be kept at the latest output."
         (insert string)
         (set-marker mark (point))))))
 
+;;;###autoload
 (defun ros-topic-echo (topic &optional flags)
   "Prompt for TOPIC and echo this topic with FLAGS."
   (interactive (list (ros-generic-completing-read "topic") (transient-args 'ros-topic-echo-transient)))
@@ -377,6 +421,7 @@ and the point will be kept at the latest output."
     (message command)
     (ros-process-run command (format "*%s*" command))))
 
+;;;###autoload
 (defun ros-topic-echo-filtered ( &optional flags)
   "Prompt for TYPE and then for topic and echo this topic with FLAGS."
   (interactive (list (transient-args 'ros-topic-echo-transient)))
@@ -411,6 +456,7 @@ and the point will be kept at the latest output."
   :argument "-n "
   :reader 'transient-read-number-N+)
 
+;;;###autoload
 (define-transient-command ros-topic-echo-transient ()
   "Transient command for ros-topic-echo."
   ["Arguments"
