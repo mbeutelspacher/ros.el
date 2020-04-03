@@ -51,28 +51,28 @@
 
 (defvar ros-workspaces '("localhost" . nil) "Assoc list of candidates for `ros-current-workspace' grouped by `ros-current-tramp-prefix'.")
 
-(defun ros-shell-command-to-string (cmd &optional source)
-  "Source `ros-current-workspace' if SOURCE run CMD and return output as string.
+(defun ros-shell-command-to-string (cmd &optional not-source)
+  "Source `ros-current-workspace' if NOT—SOURCE, run CMD, return output as string.
 
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
-  (let ((command (if source (format "%s && %s" (ros-shell-source-command) cmd) cmd)))
+  (let ((command (if not-source  cmd (format "%s && %s" (ros-shell-source-command) cmd))))
   (s-trim (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
             (shell-command-to-string (format "/bin/bash  -c \"%s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" command))))))
 
-(defun ros-shell-command-to-list (cmd &optional source)
-  "Source `ros-current-workspace' if SOURCE run CMD and return output as list.
+(defun ros-shell-command-to-list (cmd &optional not-source)
+  "Source `ros-current-workspace' unless NOT-SOURCE run CMD and return output as list.
 
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
-  (split-string (ros-shell-command-to-string cmd source) "\n" t "[\f\t\n\r\v\\]+"))
+  (split-string (ros-shell-command-to-string cmd not-source) "\n" t "[\f\t\n\r\v\\]+"))
 
-(defun ros-process-run (cmd buffer &optional source)
-  "Source `ros-current-workspace' if SOURCE run CMD and print output in BUFFER.
+(defun ros-process-run (cmd buffer &optional not-source)
+  "Source `ros-current-workspace' unless NOT-SOURCE run CMD and print output in BUFFER.
 
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
-  (let* ((command (if source (format "%s && %s" (ros-shell-source-command) cmd) cmd))
+  (let* ((command (if not-source cmd (format "%s && %s" (ros-shell-source-command) cmd) ))
         (process (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
                    (start-process-shell-command buffer buffer (format "/bin/bash  -c \"%s\"" command)))))
     
@@ -89,7 +89,7 @@ or the host system if `ros-current-tramp-prefix' is nil."
 
 (defun ros-catkin-locate-devel ()
   "Return the path to the devel folder in `ros-current-workspace' with profile `ros-current-profile'."
-  (s-trim (ros-shell-command-to-string (concat "catkin locate -d --profile " ros-current-profile))))
+  (s-trim (ros-shell-command-to-string (concat "catkin locate -d --profile " ros-current-profile) t)))
 
 (defun ros-shell-source-command ()
   "Return the source command to source workspace.
@@ -104,7 +104,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
 (defun ros-catkin-list-profiles (workspace)
   "Get list of profiles for WORKSPACE."
   (let ((ros-current-workspace workspace))
-    (ros-shell-command-to-list "catkin profile list -u")))
+    (ros-shell-command-to-list "catkin profile list -u" t)))
 
 ;;;###autoload
 (defun ros-set-workspace ()
@@ -119,11 +119,11 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
 
 (defun ros-packages-list ()
   "List all the available Ros packages."
-  (ros-shell-command-to-list "rospack list-names" t))
+  (ros-shell-command-to-list "rospack list-names"))
 
 (defun ros-packages-location-list ()
   "Return assocation list of all the available Ros packages and their paths."
-  (kvplist->alist (split-string (ros-shell-command-to-string "rospack list" t))))
+  (kvplist->alist (split-string (ros-shell-command-to-string "rospack list"))))
 
 
 (defun ros-completing-read-ros-package()
@@ -142,7 +142,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
 
 (defun ros-catkin-packages-list ()
   "List all the Ros packages in `ros-current-workspace'."
-  (ros-shell-command-to-list "catkin list --unformatted --quiet" t))
+  (ros-shell-command-to-list "catkin list --unformatted --quiet"))
 
 (defun ros-catkin-completing-read-ros-package()
   "Completing read function for `ros-catkin-packages-list'."
@@ -334,7 +334,7 @@ If called interactively prompt for action from history."
 
 TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
   (ros-generic-assert-type type)
-  (ros-shell-command-to-list (format "ros%s list" type) t))
+  (ros-shell-command-to-list (format "ros%s list" type)))
 
 (defun ros-generic-completing-read (type)
   "Prompts for Ros TYPE.
@@ -350,22 +350,40 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
 TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
   (ros-generic-assert-type type)
   (let ((command (if (or(string= type "msg")(string= type "srv")) "show" "info")))
-    (ros-shell-command-to-string (format "ros%s %s %s %s" type command (string-join flags " ") name) t)))
+    (ros-shell-command-to-string (format "ros%s %s %s %s" type command (string-join flags " ") name))))
 
-(defun ros-generic-show-info (type name)
+(defun ros-generic-show-info (type name &optional flags)
   "Show info about NAME of type TYPE in new buffer."
   (let ((buffer-name (format "* ros-%s: %s" type name)))
     (when (get-buffer buffer-name) (kill-buffer buffer-name))
     (pop-to-buffer buffer-name))
   (erase-buffer)
-  (insert (ros-generic-info type name))
+  (insert (ros-generic-info type name flags))
   (ros-info-mode))
 
 ;;;###autoload
-(defun ros-msg-show (msg)
+(defun ros-msg-show (msg &optional flags)
   "Prompt for MSG and show structure."
-  (interactive (list (ros-generic-completing-read "msg")))
-  (ros-generic-show-info "msg" msg))
+  (interactive (list (ros-generic-completing-read "msg") (transient-args 'ros-msg-srv-show-transient)))
+  (ros-generic-show-info "msg" msg flags))
+
+(define-infix-argument ros-msg-srv-show-transient:--bag()
+  :description "show messages from .bag file"
+  :class 'transient-option
+  :shortarg "-b"
+  :argument "--bag="
+  :reader 'ros-transient-read-existing-file)
+
+(define-transient-command ros-msg-srv-show-transient ()
+  "Transient command for ros-topic-echo."
+  ["Arguments"
+   ("-r" "show raw message text, including comments" "--raw")
+   (ros-msg-srv-show-transient:--bag)
+   ]
+  ["Actions"
+   ("m" "show messages" ros-msg-show)
+   ("s" "show srv" ros-srv-show)
+   ])
 
 ;;;###autoload
 (defun ros-topic-show (topic)
@@ -381,10 +399,10 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
   (ros-generic-show-info "service" service))
 
 ;;;###autoload
-(defun ros-srv-show (service)
+(defun ros-srv-show (service &optional flags)
   "Prompt for (not necessarily active) SERVICE and show structure."
-  (interactive (list (ros-generic-completing-read "srv")))
-  (ros-generic-show-info "srv" service))
+  (interactive (list (ros-generic-completing-read "srv") (transient-args 'ros-msg-srv-show-transient)))
+  (ros-generic-show-info "srv" service flags))
 
 ;;;###autoload
 (defun ros-node-show (node)
