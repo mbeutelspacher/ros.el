@@ -497,7 +497,7 @@ and the point will be kept at the latest output."
     (mapcar (lambda (x) (cons (cl-second(cdr x)) (cl-first(cdr x)))) matches)))
 
 (defun ros-topic-filter-by-type (type &optional type-topic-list)
-  "Return topics with type TYPE."
+  "Return topics with type TYPE, TYPE-TOPIC—LIST can be reused."
   (let ((type-topic-list (if type-topic-list type-topic-list (ros-topic-list-by-type))))
     (mapcar 'cdr(kvalist->filter-keys type-topic-list type))))
 
