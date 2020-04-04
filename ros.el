@@ -555,6 +555,116 @@ and the point will be kept at the latest output."
   "List the names of all rostests in PACKAGE."
   (let* ((path (concat(ros-packages-locate-package package) "/test")))
     (directory-files path nil ".*\\.xml")))
+;;;###autoload
+(defun ros-insert-import-msg (message)
+  "Prompt for MESSAGE and include it in file."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-insert-import "msg" message))
+
+;;;###autoload
+(defun ros-insert-import-srv (service)
+  "Prompt for SERVICE and include it in file."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-insert-import "srv" service))
+
+(defun ros-insert-import (type name)
+  "Insert TYPE (either msg or srv) definition for NAME in the current buffer."
+  (let ((package (car (split-string name "/")))
+        (item-name (car (cdr(split-string name "/")))))
+    (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
+          ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
+          (t (message "Only works in Python and C++ mode")))))
+
+;;;###autoload
+(defun ros-insert-topic (topic)
+  "Prompt for TOPIC and insert it at point."
+  (interactive (list (ros-generic-completing-read "topic")))
+  (insert topic))
+
+;;;###autoload
+(defun ros-insert-msg (name)
+  "Insert  definition for msg NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "msg")))
+  (ros-insert-msg-srv name))
+
+;;;###autoload
+(defun ros-insert-srv (name)
+  "Insert  definition for srv NAME in the current buffer."
+  (interactive (list (ros-generic-completing-read "srv")))
+  (ros-insert-msg-srv name))
+
+(defun ros-insert-msg-srv (name)
+  "Insert (either msg or srv) definition for NAME in the current buffer."
+  (let ((package (car (split-string name "/")))
+        (item-name (car (cdr (split-string name "/")))))
+    (insert (format " %s::%s" package item-name))))
+
+(defun ros-insert-import-python (type package name)
+  "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
+  (let ((start-import-statement (format "from %s.%s import" package type)))
+    (when (not (ros-import-is-included-python-p type package name))
+      (if (ros-import-search-same-package-import-python type package)
+          (progn
+            (goto-char (ros-import-search-same-package-import-python type package))
+            (move-end-of-line nil)
+            (insert (format ", %s" name)))
+        (goto-char (ros-insert-import-python-best-import-location type))
+        (end-of-line)
+        (newline-and-indent)
+        (insert (format "%s %s" start-import-statement name))))))
+
+(defun ros-insert-import-python-best-import-location (type)
+  "Return the best location for a python import of TYPE.
+TYPE can be either msg or srv.
+The best location would be another import of this TYPE,
+the second best another import and lastly the beginning of the buffer."
+  (or (ros-string-in-buffer (format "from .*\.%s import .*" type)) (ros-string-in-buffer "import") (point-min)))
+
+(defun ros-string-in-buffer (string)
+  "Return point where STRING is in the current buffer, nil otherwise."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward string nil t)))
+
+(defun ros-import-is-included-python-p (type package name)
+  "Return t if NAME in PACKAGE of TYPE is already included in the current python buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "from %s.%s import .*%s[, \n]" package type name) nil t)))
+
+(defun ros-import-search-same-package-import-python (type package)
+  "Search for import of TYPE  of PACKAGE in the current buffer.
+TYPE can be either msg or srv.
+Return nil if there is None and the point of the first import if there is one."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "from %s.%s import" package type) nil t)))
+
+
+(defun ros-insert-import-cpp (type package name)
+  "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current cpp buffer."
+  (when (not (ros-import-is-included-cpp-p package name))
+    (progn
+      (goto-char  (ros-insert-import-cpp-best-import-location type package))
+      (end-of-line)
+      (newline-and-indent)
+      (insert (format "#include <%s/%s.h>" package name)))))
+
+(defun ros-import-is-included-cpp-p (package name)
+  "Return t if NAME in PACKAGE of TYPE is already included in the current cpp buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (format "#include <%s\/%s.h>" package name) nil t)))
+
+(defun ros-insert-import-cpp-best-import-location (type package)
+  "Return the best location for an cpp include of TYPE.
+TYPE can be either msg or srv.
+The best location would be another import of the same PACKAGE,
+the second best another import of this TYPE
+the third best another include
+and lastly the beginning of the buffer."
+  (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
+
 
 (provide 'ros)
 
