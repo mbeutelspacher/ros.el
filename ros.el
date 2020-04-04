@@ -125,6 +125,10 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   "Return assocation list of all the available Ros packages and their paths."
   (kvplist->alist (split-string (ros-shell-command-to-string "rospack list"))))
 
+(defun ros-packages-locate-package (package)
+  "Return path to PACKAGE."
+  (ros-shell-command-to-string (concat "rospack find " package)))
+
 
 (defun ros-completing-read-ros-package()
   "Completing read function for `ros-packages-list'."
@@ -254,11 +258,30 @@ If called interactively prompt for action from history."
   "Generate a test action to test PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args run_tests" package) :flags flags :post-cmd (concat "catkin_test_results build/" package)))
 
+(cl-defun ros-catkin-test-action-single-rostest (&key package flags rostest)
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --make-args %s" package (file-name-sans-extension rostest)) :flags flags :post-cmd (format "rostest %s %s" package rostest)))
+
+(cl-defun ros-catkin-test-action-single-gtest (&key package flags gtest regexp)
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --make-args %s" package gtest) :flags flags :post-cmd (format "rosrun %s %s %s" package gtest (if regexp (concat "--gtest_filter=" regexp) ""))))
+
 ;;;###autoload
 (defun ros-catkin-run-test (package &optional flags)
-  "Run a-test action to-test PACKAGE with FLAGS."
+  "Run a test action to-test PACKAGE with FLAGS."
   (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-test-action :package package :flags flags)))
+
+;;;###autoload
+(defun ros-catkin-run-single-rostest (package &optional flags)
+  "Run a test action to run single rostest in PACKAGE with FLAGS."
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (let ((rostest (completing-read "Rostest: " (ros-catkin-list-rostests package) nil t)))
+    (ros-catkin-compile (ros-catkin-test-action-single-rostest :package package :flags flags :rostest rostest))))
+
+(defun ros-catkin-run-single-gtest (package &optional flags)
+  "Run a test action to run single gtest in PACKAGE with FLAGS."
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (let ((gtest (completing-read "Gtest: " (ros-catkin-list-executables package) nil t)))
+    (ros-catkin-compile (ros-catkin-test-action-single-gtest :package package :flags flags :gtest gtest))))
 
 (define-infix-argument ros-catkin-build-transient:--jobs()
   :description "maximal number of jobs"
@@ -288,6 +311,8 @@ If called interactively prompt for action from history."
    ("p" "Build a package" ros-catkin-run-build)
    ("w" "Build current workspace" ros-catkin-run-build-current-workspace)
    ("t" "Test a package" ros-catkin-run-test)
+   ("r" "Build and run a single rostest" ros-catkin-run-single-rostest)
+   ("g" "Build and run a single gtest" ros-catkin-run-single-gtest)
    ])
 
 (cl-defun ros-catkin-clean-action (&key package flags)
@@ -519,6 +544,17 @@ and the point will be kept at the latest output."
   (let ((type-topic-list (if type-topic-list type-topic-list (ros-topic-list-by-type))))
     (mapcar 'cdr(kvalist->filter-keys type-topic-list type))))
 
+(defun ros-catkin-list-executables(package)
+  "List the names of all executables in PACKAGE."
+  (let* ((path (concat (ros-catkin-locate-devel) "/lib/" package))
+         (files (directory-files path t))
+         (executables (seq-filter (lambda (x) (and (f-file-p x)(f-executable-p x))) files)))
+    (mapcar 'file-name-nondirectory executables)))
+
+(defun ros-catkin-list-rostests(package)
+  "List the names of all rostests in PACKAGE."
+  (let* ((path (concat(ros-packages-locate-package package) "/test")))
+    (directory-files path nil ".*\\.xml")))
 
 (provide 'ros)
 

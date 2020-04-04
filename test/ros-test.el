@@ -199,6 +199,48 @@
     (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
     (should (string= (cdr (assoc "post-cmd" action)) "catkin_test_results build/ipa_eband"))))
 
+(ert-deftest ros-catkin-test-action-single-rostest
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-test-action-single-rostest :package "ipa_eband" :flags '("-j 10") :rostest "band_test.xml")))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "build"))
+    (should (string= (cdr (assoc "args" action)) "ipa_eband --no-deps --make-args band_test"))
+    (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
+    (should (string= (cdr (assoc "post-cmd" action)) "rostest ipa_eband band_test.xml"))))
+
+(ert-deftest ros-catkin-test-action-single-rostest
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-test-action-single-rostest :package "ipa_eband" :flags '("-j 10") :rostest "band_test.xml")))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "build"))
+    (should (string= (cdr (assoc "args" action)) "ipa_eband --no-deps --make-args band_test"))
+    (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
+    (should (string= (cdr (assoc "post-cmd" action)) "rostest ipa_eband band_test.xml"))))
+
+(ert-deftest ros-catkin-test-action-single-gtest
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-test-action-single-gtest :package "ipa_eband" :flags '("-j 10") :gtest "band_test" :regexp "test_my_thing")))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "build"))
+    (should (string= (cdr (assoc "args" action)) "ipa_eband --no-deps --make-args band_test"))
+    (should (string= (car(cdr (assoc "flags" action))) "-j 10"))
+    (should (string= (cdr (assoc "post-cmd" action)) "rosrun ipa_eband band_test --gtest_filter=test_my_thing"))))
+
 (ert-deftest ros-generic-list-type-correct()
   (should-error (ros-generic-list "foo")))
 
@@ -253,6 +295,19 @@
 
 (ert-deftest ros-topic-filter-by-type ()
   (should (member "/rosout" (ros-topic-filter-by-type "rosgraph_msgs/Log"))))
+
+(ert-deftest ros-catkin-list-executables()
+  (let ((ros-current-workspace "~/git/catkin/ipa"))
+    (should-not (member "." (ros-catkin-list-executables "ipa_eband")))
+  (should (member "band_test" (ros-catkin-list-executables "ipa_eband")))))
+  
+(ert-deftest ros-catkin-list-rostests()
+  (let ((ros-current-workspace "~/git/catkin/ipa"))
+    (should-not (member "band_test.xml" (ros-catkin-list-rostests "ipa_eband")))
+    (should (member "force_initialization_test.xml" (ros-catkin-list-rostests "ipa_eband")))))
+
+(ert-deftest ros-packages-locate-package()
+  (should (string= (ros-packages-locate-package "move_base") "/opt/ros/melodic/share/move_base")))
 
 (provide 'ros-test)
 
