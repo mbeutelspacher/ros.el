@@ -33,6 +33,7 @@
 
 (require 'with-shell-interpreter)
 (require 's)
+(require 'f)
 (require 'subr-x)
 (require 'kv)
 (require 'cl-lib)
@@ -52,8 +53,9 @@
 (defvar ros-workspaces '("localhost" . nil) "Assoc list of candidates for `ros-current-workspace' grouped by `ros-current-tramp-prefix'.")
 
 (defun ros-shell-command-to-string (cmd &optional not-source)
-  "Source `ros-current-workspace' if NOT—SOURCE, run CMD, return output as string.
+  "Source workspace unless NOT-SOURCE run CMD, return output as string.
 
+Use`ros-current-workspace' as sourced workspace.
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
   (let ((command (if not-source  cmd (format "%s && %s" (ros-shell-source-command) cmd))))
@@ -61,15 +63,17 @@ or the host system if `ros-current-tramp-prefix' is nil."
             (shell-command-to-string (format "/bin/bash  -c \"%s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" command))))))
 
 (defun ros-shell-command-to-list (cmd &optional not-source)
-  "Source `ros-current-workspace' unless NOT-SOURCE run CMD and return output as list.
+  "Source workspace unless NOT-SOURCE run CMD and return output as list.
 
+Use`ros-current-workspace' as sourced workspace.
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
   (split-string (ros-shell-command-to-string cmd not-source) "\n" t "[\f\t\n\r\v\\]+"))
 
 (defun ros-process-run (cmd buffer &optional not-source)
-  "Source `ros-current-workspace' unless NOT-SOURCE run CMD and print output in BUFFER.
+  "Source workspace unless NOT-SOURCE run CMD and print output in BUFFER.
 
+Use`ros-current-workspace' as sourced workspace.
 Run in `ros-current-workspace' on `ros-current-tramp-prefix'
 or the host system if `ros-current-tramp-prefix' is nil."
   (let* ((command (if not-source cmd (format "%s && %s" (ros-shell-source-command) cmd) ))
@@ -259,9 +263,11 @@ If called interactively prompt for action from history."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args run_tests" package) :flags flags :post-cmd (concat "catkin_test_results build/" package)))
 
 (cl-defun ros-catkin-test-action-single-rostest (&key package flags rostest)
+  "Generate a test action to build and run ROSTEST in PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --make-args %s" package (file-name-sans-extension rostest)) :flags flags :post-cmd (format "rostest %s %s" package rostest)))
 
 (cl-defun ros-catkin-test-action-single-gtest (&key package flags gtest regexp)
+  "Generate a test action to build and run GTEST matching REGEXP in PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --make-args %s" package gtest) :flags flags :post-cmd (format "rosrun %s %s %s" package gtest (if regexp (concat "--gtest_filter=" regexp) ""))))
 
 ;;;###autoload
@@ -388,7 +394,7 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
 
 ;;;###autoload
 (defun ros-msg-show (msg &optional flags)
-  "Prompt for MSG and show structure."
+  "Prompt for MSG and show structure with FLAGS."
   (interactive (list (ros-generic-completing-read "msg") (transient-args 'ros-msg-srv-show-transient)))
   (ros-generic-show-info "msg" msg flags))
 
@@ -425,7 +431,7 @@ TYPE can be \"msg\", \"srv\", \"topic\", \"node\",\"service\"."
 
 ;;;###autoload
 (defun ros-srv-show (service &optional flags)
-  "Prompt for (not necessarily active) SERVICE and show structure."
+  "Prompt for (not necessarily active) SERVICE and show structure with FLAGS."
   (interactive (list (ros-generic-completing-read "srv") (transient-args 'ros-msg-srv-show-transient)))
   (ros-generic-show-info "srv" service flags))
 
@@ -474,7 +480,7 @@ and the point will be kept at the latest output."
     (ros-topic-echo topic flags)))
 
 (defun ros-transient-read-existing-file (prompt _initial-input _history)
-  "Read an existing file."
+  "Read an existing file with PROMPT."
   (expand-file-name (read-file-name prompt nil nil t)))
 
 
@@ -540,7 +546,7 @@ and the point will be kept at the latest output."
     (mapcar (lambda (x) (cons (cl-second(cdr x)) (cl-first(cdr x)))) matches)))
 
 (defun ros-topic-filter-by-type (type &optional type-topic-list)
-  "Return topics with type TYPE, TYPE-TOPIC—LIST can be reused."
+  "Return topics with type TYPE, TYPE-TOPIC-LIST can be reused."
   (let ((type-topic-list (if type-topic-list type-topic-list (ros-topic-list-by-type))))
     (mapcar 'cdr(kvalist->filter-keys type-topic-list type))))
 
