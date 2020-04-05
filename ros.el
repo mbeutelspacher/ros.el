@@ -354,6 +354,42 @@ If called interactively prompt for action from history."
    ("w" "Clean current workspace" ros-catkin-run-clean-current-workspace)
    ])
 
+(cl-defun ros-catkin-config-action (&key flags)
+  "Generate a config action to config `ros-current-workspace' with FLAGS."
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "config" :args "" :flags flags :post-cmd nil))
+
+;;;###autoload
+(defun ros-catkin-run-config(&optional flags)
+  "Run a clean action to clean the current workspace with FLAGS."
+  (interactive (list (transient-args 'ros-catkin-config-transient)))
+  (ros-catkin-compile (ros-catkin-config-action :flags flags)))
+
+(define-infix-argument ros-catkin-config-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS()
+  :description "-DCMAKE_EXPORT_COMPILE_COMMANDS"
+  :class 'transient-switches
+  :key "-ec"
+  :argument-format "--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=%s"
+  :argument-regexp "--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=\\(ON\\|OFF\\)"
+  :choices '("ON" "OFF"))
+
+(define-infix-argument ros-catkin-config-transient:--DCMAKE_BUILD_TYPE()
+  :description "-DCMAKE_BUILD_TYPE"
+  :class 'transient-switches
+  :key "-bt"
+  :argument-format "--cmake-args -DCMAKE_BUILD_TYPE=%s"
+  :argument-regexp "--cmake-args -DCMAKE_BUILD_TYPE=\\(Release\\|Debug\\|RelWithDebInfo\\|MinSizeRel\\)"
+  :choices '("Release" "Debug" "RelWithDebInfo" "MinSizeRel"))
+
+(define-transient-command ros-catkin-config-transient ()
+  "Transient command for catkin config."
+  ["Arguments"
+   (ros-catkin-config-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
+   (ros-catkin-config-transient:--DCMAKE_BUILD_TYPE)
+   ]
+  ["Actions"
+   ("c" "Clean a package" ros-catkin-run-config)
+   ])
+
 (defun ros-generic-assert-type (type)
   "Assert that TYPE is a valid type."
   (let ((candidates '("msg" "srv" "topic" "node" "service")))
@@ -672,6 +708,8 @@ and lastly the beginning of the buffer."
   (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
 
 
+
 (provide 'ros)
 
 ;;; ros.el ends here
+

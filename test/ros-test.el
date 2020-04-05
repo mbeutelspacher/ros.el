@@ -392,7 +392,20 @@
     )
   )
 
-
+(ert-deftest ros-catkin-config-action
+    ()
+  (let* ((ros-current-tramp-prefix "/ssh:remote:")
+         (ros-current-workspace "~/git/catkin/ipa")
+         (ros-current-profile "default")
+         (action (ros-catkin-config-action  :flags '("--install" "--cmake-args \"-DCMAKE_EXPORT_COMPILE_COMMANDS=1\""))))
+    (should (string= (cdr (assoc "tramp-prefix" action)) ros-current-tramp-prefix))
+    (should (string= (cdr (assoc "workspace" action)) ros-current-workspace))
+    (should (string= (cdr (assoc "profile" action)) ros-current-profile))
+    (should (string= (cdr (assoc "verb" action)) "config"))
+    (should (string= (cdr (assoc "args" action)) ""))
+    (should (string= (car(cdr (assoc "flags" action)))"--install"))
+    (should (string= (cl-second(cdr (assoc "flags" action)))"--cmake-args \"-DCMAKE_EXPORT_COMPILE_COMMANDS=1\""))
+    (should (eq (cdr (assoc "post-cmd" action)) nil))))
 
 
 
