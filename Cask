@@ -6,6 +6,7 @@
 (depends-on "kv")
 (depends-on "s")
 (depends-on "transient")
+(depends-on "yaml-mode")
 (depends-on "with-shell-interpreter")
 
 (development

@@ -38,6 +38,7 @@
 (require 'kv)
 (require 'cl-lib)
 (require 'transient)
+(require 'yaml-mode)
 
 (defgroup ros nil "Related to the Robot Operating System."
   :group 'external)
@@ -706,6 +707,31 @@ the second best another import of this TYPE
 the third best another include
 and lastly the beginning of the buffer."
   (or (ros-string-in-buffer (format "#include <%s/.*>" package)) (ros-string-in-buffer (format "#include <.*%ss/.*>" type)) (ros-string-in-buffer "#include") (point-min)))
+
+(defun ros-msg-srv-assert-type (type)
+  "Assert that TYPE is a valid type."
+  (let ((candidates '("msg" "srv")))
+    (when (not(member type candidates))
+      (error (format "%s is not element of %s" type (string-join candidates ", "))))))
+
+(defun ros-msg-srv-generate-prototype(type name)
+  "Generate prototype of type NAME for TYPE (msg or srv)."
+  (ros-msg-srv-assert-type type)
+  (string-trim (ros-shell-command-to-string (format "rosmsg-proto %s %s" type name)) "\"" "\""))
+
+(defun ros-topic-pub (topic)
+  "Prompt for TOPIC and compose message of right type in new buffer."
+  (interactive (list (ros-generic-completing-read "topic")))
+  (let ((buffer-name (format "*%s*" topic)))
+    (when (get-buffer buffer-name)
+      (kill-buffer buffer-name))
+    (pop-to-buffer buffer-name)
+    (erase-buffer)
+    (insert (ros-msg-srv-generate-prototype "msg" (ros-topic-service-get-type "topic" topic)))
+    (ros-topic-pub-mode)))
+
+(define-derived-mode ros-topic-pub-mode yaml-mode "ros-topic-pub-mode"
+  "major mode for publishing ros msg")
 
 
 

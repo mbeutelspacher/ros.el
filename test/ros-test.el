@@ -407,8 +407,22 @@
     (should (string= (cl-second(cdr (assoc "flags" action)))"--cmake-args \"-DCMAKE_EXPORT_COMPILE_COMMANDS=1\""))
     (should (eq (cdr (assoc "post-cmd" action)) nil))))
 
+(ert-deftest ros-msg-srv-generate-prototype-right-type ()
+  (should-error (ros-msg-srv-generate-prototype "foo")))
+
+(ert-deftest ros-msg-srv-generate-prototype-msg ()
+   (should (string= (ros-msg-srv-generate-prototype "msg" "std_msgs/Bool") "data: false")))
+
+(ert-deftest ros-msg-srv-generate-prototype-srv ()
+  (should (string= (ros-msg-srv-generate-prototype "srv" "std_srvs/SetBool") "data: false")))
+
+(ert-deftest ros-topic-pub()
+  (ros-topic-pub "/rosout")
+  (should(string= (buffer-string) (ros-msg-srv-generate-prototype "msg" "rosgraph_msgs/Log")))
+  (should (string= major-mode "ros-topic-pub-mode")))
+  
 
 
-(provide 'ros-test)
+  (provide 'ros-test)
 
 ;;; ros-test.el ends here
