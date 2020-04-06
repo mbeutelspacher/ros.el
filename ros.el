@@ -39,6 +39,7 @@
 (require 'cl-lib)
 (require 'transient)
 (require 'yaml-mode)
+(require 'hydra)
 
 (defgroup ros nil "Related to the Robot Operating System."
   :group 'external)
@@ -733,6 +734,15 @@ and lastly the beginning of the buffer."
 (define-derived-mode ros-topic-pub-mode yaml-mode "ros-topic-pub-mode"
   "major mode for publishing ros msg")
 
+(defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
+ "
+_c_: Compile from history  _b_: Build  _w_: select workspace
+"
+  ("c" ros-catkin-compile)
+  ("b" ros-catkin-build-transient)
+  ("w" ros-set-workspace)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
 
 
 (provide 'ros)
