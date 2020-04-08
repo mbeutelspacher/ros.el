@@ -308,13 +308,16 @@
 
 (ert-deftest ros-packages-locate-package()
   (should (string= (ros-packages-locate-package "move_base") "/opt/ros/melodic/share/move_base")))
+
+(ert-deftest ros-packages-list-files-in-package()
+  (let ((ros-current-workspace "~/git/catkin/ipa"))
+  (should (member "CMakeLists.txt" (ros-packages-list-files-in-package "ipa_eband")))))
+
 (ert-deftest ros-insert-msg-python-import-statement()
   (with-temp-buffer
     (python-mode)
     (ros-msg-srv-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
-    )
-  )
+    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))))
 
 (ert-deftest ros-insert-msg-python--import-statement-do-not-import-twice()
   (with-temp-buffer

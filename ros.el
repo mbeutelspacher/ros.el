@@ -135,6 +135,19 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   "Return path to PACKAGE."
   (ros-shell-command-to-string (concat "rospack find " package)))
 
+(defun ros-packages-list-files-in-package (package)
+  "Return list of files in PACKAGE.
+
+Paths will be relative to root of package."
+  (let ((path (ros-packages-locate-package package)))
+    (mapcar (lambda (f) (file-relative-name f path)) (directory-files-recursively path ".*" nil (lambda (d) (not (s-starts-with-p "." (file-name-nondirectory d))))))))
+
+(defun ros-packages-find-file-in-package (package)
+  "Find file in PACKAGE."
+  (interactive (list (ros-completing-read-ros-package)))
+  (let ((path (ros-packages-locate-package package))
+        (file (completing-read "File: " (ros-packages-list-files-in-package package) nil t)))
+    (find-file (concat (file-name-as-directory path) file))))
 
 (defun ros-completing-read-ros-package()
   "Completing read function for `ros-packages-list'."
@@ -321,7 +334,6 @@ If called interactively prompt for action from history."
    ("t" "Test a package" ros-catkin-run-test)
    ("r" "Build and run a single rostest" ros-catkin-run-single-rostest)
    ("g" "Build and run a single gtest" ros-catkin-run-single-gtest)
-   ("e" "test" test)
    ])
 
 (cl-defun ros-catkin-clean-action (&key package flags)
@@ -792,7 +804,7 @@ _I_: Insert import statement for message type
 _g_: Go to package _f_:  Find file in package _s_:  Search in package
 "
   ("g" ros-packages-go-to-package)
-  ("f" nil)
+  ("f" ros-packages-find-file-in-package)
   ("s" nil)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
