@@ -311,7 +311,7 @@
 (ert-deftest ros-insert-msg-python-import-statement()
   (with-temp-buffer
     (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
     )
   )
@@ -320,8 +320,8 @@
   (with-temp-buffer
     (python-mode)
     (insert "\n")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
     )
   )
@@ -330,7 +330,7 @@
   (with-temp-buffer
     (insert "from package.msg import TestMsg\nfoo\nbar")
     (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (buffer-string) "from package.msg import TestMsg, FooMsg\nfoo\nbar"))
     )
   )
@@ -339,7 +339,7 @@
   (with-temp-buffer
     (insert "foo\nbar\nimport test\nfoo\nbar")
     (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (buffer-string) "foo\nbar\nimport test\nfrom package.msg import FooMsg\nfoo\nbar"))
     )
   )
@@ -347,7 +347,7 @@
 (ert-deftest ros-insert-msg-cpp-import-statement()
   (with-temp-buffer
     (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
     )
   )
@@ -355,8 +355,8 @@
 (ert-deftest ros-insert-msg-cpp-import-statement-do-not-import-twice()
   (with-temp-buffer
     (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
     )
   )
@@ -365,8 +365,8 @@
   (with-temp-buffer
     (c++-mode)
     (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg2")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg2")
     (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <package/FooMsg.h>\n#include <package/FooMsg2.h>"))
     )
   )
@@ -375,8 +375,8 @@
   (with-temp-buffer
     (c++-mode)
     (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "std_msgs/FooMsg")
-    (ros-insert-import "msg" "other_msgs/FooMsg")
+    (ros-msg-srv-insert-import "msg" "std_msgs/FooMsg")
+    (ros-msg-srv-insert-import "msg" "other_msgs/FooMsg")
     (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <std_msgs/FooMsg.h>\n#include <other_msgs/FooMsg.h>"))
     )
   )
@@ -387,7 +387,7 @@
     (insert "foo\nbar\n")
     (insert "#include <foo/bar.h>\n")
     (insert "foo\nbar\n")
-    (ros-insert-import "msg" "package/FooMsg")
+    (ros-msg-srv-insert-import "msg" "package/FooMsg")
     (should (string= (s-trim (buffer-string)) "foo\nbar\n#include <foo/bar.h>\n#include <package/FooMsg.h>\nfoo\nbar"))
     )
   )

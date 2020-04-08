@@ -321,6 +321,7 @@ If called interactively prompt for action from history."
    ("t" "Test a package" ros-catkin-run-test)
    ("r" "Build and run a single rostest" ros-catkin-run-single-rostest)
    ("g" "Build and run a single gtest" ros-catkin-run-single-gtest)
+   ("e" "test" test)
    ])
 
 (cl-defun ros-catkin-clean-action (&key package flags)
@@ -600,64 +601,64 @@ and the point will be kept at the latest output."
   (let* ((path (concat(ros-packages-locate-package package) "/test")))
     (directory-files path nil ".*\\.xml")))
 ;;;###autoload
-(defun ros-insert-import-msg (message)
+(defun ros-msg-insert-import (message)
   "Prompt for MESSAGE and include it in file."
   (interactive (list (ros-generic-completing-read "msg")))
-  (ros-insert-import "msg" message))
+  (ros-msg-srv-insert-import "msg" message))
 
 ;;;###autoload
-(defun ros-insert-import-srv (service)
+(defun ros-srv-insert-import (service)
   "Prompt for SERVICE and include it in file."
   (interactive (list (ros-generic-completing-read "srv")))
-  (ros-insert-import "srv" service))
+  (ros-msg-srv-insert-import "srv" service))
 
-(defun ros-insert-import (type name)
+(defun ros-msg-srv-insert-import (type name)
   "Insert TYPE (either msg or srv) definition for NAME in the current buffer."
   (let ((package (car (split-string name "/")))
         (item-name (car (cdr(split-string name "/")))))
-    (cond ((string= major-mode "python-mode") (ros-insert-import-python type package item-name))
-          ((string= major-mode "c++-mode") (ros-insert-import-cpp type package item-name))
+    (cond ((string= major-mode "python-mode") (ros-msg-srv-insert-import-python type package item-name))
+          ((string= major-mode "c++-mode") (ros-msg-srv-insert-import-cpp type package item-name))
           (t (message "Only works in Python and C++ mode")))))
 
 ;;;###autoload
-(defun ros-insert-topic (topic)
+(defun ros-topic-insert (topic)
   "Prompt for TOPIC and insert it at point."
   (interactive (list (ros-generic-completing-read "topic")))
   (insert topic))
 
 ;;;###autoload
-(defun ros-insert-msg (name)
+(defun ros-msg-insert(name)
   "Insert  definition for msg NAME in the current buffer."
   (interactive (list (ros-generic-completing-read "msg")))
-  (ros-insert-msg-srv name))
+  (ros-msg-srv-insert name))
 
 ;;;###autoload
-(defun ros-insert-srv (name)
+(defun ros-srv-insert (name)
   "Insert  definition for srv NAME in the current buffer."
   (interactive (list (ros-generic-completing-read "srv")))
-  (ros-insert-msg-srv name))
+  (ros-msg-srv-insert name))
 
-(defun ros-insert-msg-srv (name)
+(defun ros-msg-srv-insert (name)
   "Insert (either msg or srv) definition for NAME in the current buffer."
   (let ((package (car (split-string name "/")))
         (item-name (car (cdr (split-string name "/")))))
     (insert (format " %s::%s" package item-name))))
 
-(defun ros-insert-import-python (type package name)
+(defun ros-msg-srv-insert-import-python (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current python buffer."
   (let ((start-import-statement (format "from %s.%s import" package type)))
-    (when (not (ros-import-is-included-python-p type package name))
-      (if (ros-import-search-same-package-import-python type package)
+    (when (not (ros-msg-srv-import-is-included-python-p type package name))
+      (if (ros-msg-srv-import-search-same-package-import-python type package)
           (progn
-            (goto-char (ros-import-search-same-package-import-python type package))
+            (goto-char (ros-msg-srv-import-search-same-package-import-python type package))
             (move-end-of-line nil)
             (insert (format ", %s" name)))
-        (goto-char (ros-insert-import-python-best-import-location type))
+        (goto-char (ros-msg-srv-insert-import-python-best-import-location type))
         (end-of-line)
         (newline-and-indent)
         (insert (format "%s %s" start-import-statement name))))))
 
-(defun ros-insert-import-python-best-import-location (type)
+(defun ros-msg-srv-insert-import-python-best-import-location (type)
   "Return the best location for a python import of TYPE.
 TYPE can be either msg or srv.
 The best location would be another import of this TYPE,
@@ -670,13 +671,13 @@ the second best another import and lastly the beginning of the buffer."
     (goto-char (point-min))
     (re-search-forward string nil t)))
 
-(defun ros-import-is-included-python-p (type package name)
+(defun ros-msg-srv-import-is-included-python-p (type package name)
   "Return t if NAME in PACKAGE of TYPE is already included in the current python buffer."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (format "from %s.%s import .*%s[, \n]" package type name) nil t)))
 
-(defun ros-import-search-same-package-import-python (type package)
+(defun ros-msg-srv-import-search-same-package-import-python (type package)
   "Search for import of TYPE  of PACKAGE in the current buffer.
 TYPE can be either msg or srv.
 Return nil if there is None and the point of the first import if there is one."
@@ -685,22 +686,22 @@ Return nil if there is None and the point of the first import if there is one."
     (re-search-forward (format "from %s.%s import" package type) nil t)))
 
 
-(defun ros-insert-import-cpp (type package name)
+(defun ros-msg-srv-insert-import-cpp (type package name)
   "Insert TYPE (either msg or srv) definition for NAME which is part of PACKAGE in the current cpp buffer."
-  (when (not (ros-import-is-included-cpp-p package name))
+  (when (not (ros-msg-srv-import-is-included-cpp-p package name))
     (progn
-      (goto-char  (ros-insert-import-cpp-best-import-location type package))
+      (goto-char  (ros-msg-srv-insert-import-cpp-best-import-location type package))
       (end-of-line)
       (newline-and-indent)
       (insert (format "#include <%s/%s.h>" package name)))))
 
-(defun ros-import-is-included-cpp-p (package name)
+(defun ros-msg-srv-import-is-included-cpp-p (package name)
   "Return t if NAME in PACKAGE of TYPE is already included in the current cpp buffer."
   (save-excursion
     (goto-char (point-min))
     (re-search-forward (format "#include <%s\/%s.h>" package name) nil t)))
 
-(defun ros-insert-import-cpp-best-import-location (type package)
+(defun ros-msg-srv-insert-import-cpp-best-import-location (type package)
   "Return the best location for an cpp include of TYPE.
 TYPE can be either msg or srv.
 The best location would be another import of the same PACKAGE,
@@ -734,16 +735,106 @@ and lastly the beginning of the buffer."
 (define-derived-mode ros-topic-pub-mode yaml-mode "ros-topic-pub-mode"
   "major mode for publishing ros msg")
 
+
+
+
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
- "
-_c_: Compile from history  _b_: Build  _w_: select workspace
+  "
+_c_: Catkin              _d_: Debug        _e_: Environment     _m_: Messages
+_n_: Nodes               _p_: Packages     _P_: Parameters      _s_: Services
+_S_: Active Services     _t_: Topics       
 "
-  ("c" ros-catkin-compile)
+  ("c" hydra-ros-catkin/body)
+  ("e" hydra-ros-environment/body)
+  ("m" hydra-ros-messages/body)
+  ("n" hydra-ros-nodes/body)
+  ("p" hydra-ros-packages/body)
+  ("s" hydra-ros-services/body)
+  ("S" hydra-ros-active-services/body)
+  ("t" hydra-ros-topics/body)
+  ("d" nil)
+  ("P" nil)
+  ("q" nil "quit" :color blue))
+
+
+(defhydra hydra-ros-catkin (:color blue :hint nil :foreign-keys warn)
+  "
+_b_: build  _c_: config  _r_: redo  _x_: clean 
+"
   ("b" ros-catkin-build-transient)
+  ("c" ros-catkin-config-transient)
+  ("r" ros-catkin-compile)
+  ("x" ros-catkin-clean-transient)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-environment (:color blue :hint nil :foreign-keys warn)
+  "
+_w_: Set Workspace 
+"
   ("w" ros-set-workspace)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
+(defhydra hydra-ros-messages (:color blue :hint nil :foreign-keys warn)
+  "
+_i_: Insert message type at point               _s_: Show message 
+_I_: Insert import statement for message type
+"
+  ("i" ros-msg-insert)
+  ("I" ros-msg-insert-import)
+  ("s" ros-msg-srv-show-transient)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-packages (:color blue :hint nil :foreign-keys warn)
+  "
+_g_: Go to package _f_:  Find file in package _s_:  Search in package
+"
+  ("g" ros-packages-go-to-package)
+  ("f" nil)
+  ("s" nil)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-nodes (:color blue :hint nil :foreign-keys warn)
+  "
+_s_: Show node
+"
+  ("s" ros-node-show)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-services (:color blue :hint nil :foreign-keys warn)
+  "
+_i_: Insert service type at point               _s_: Show service 
+_I_: Insert import service for message type
+"
+  ("i" ros-srv-insert)
+  ("I" ros-srv-insert-import)
+  ("s" ros-msg-srv-show-transient)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-active-services (:color blue :hint nil :foreign-keys warn)
+  "
+_s_: Show active Service    _c_: Call active service
+"
+  ("s" ros-service-show)
+  ("c" nil)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-topics (:color blue :hint nil :foreign-keys warn)
+  "
+_e_: Echo Topic                   _s_: Show Topic                   _p_: Publish message on topic                   _i_: Insert name of topic at point
+"
+  ("e" ros-topic-echo-transient) 
+  ("s" ros-topic-show)
+  ("p" nil)
+  ("i" ros-topic-insert)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
 
 (provide 'ros)
 
