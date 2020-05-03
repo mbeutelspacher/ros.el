@@ -149,6 +149,11 @@ Paths will be relative to root of package."
         (file (completing-read "File: " (ros-packages-list-files-in-package package) nil t)))
     (find-file (concat (file-name-as-directory path) file))))
 
+(defun ros-packages-find-file-in-current-package ()
+  "Find file in PACKAGE."
+  (interactive)
+  (ros-packages-find-file-in-package (ros-current-package)))
+
 (defun ros-completing-read-ros-package()
   "Completing read function for `ros-packages-list'."
   (let ((collection (ros-packages-list))
@@ -801,11 +806,14 @@ _I_: Insert import statement for message type
 
 (defhydra hydra-ros-packages (:color blue :hint nil :foreign-keys warn)
   "
-_g_: Go to package _f_:  Find file in package _s_:  Search in package
+_g_: Go to package _f_:  Find file current package  _F_: Find file in a package
+_s_:  Search in current package  _S_: Search in a package
 "
   ("g" ros-packages-go-to-package)
-  ("f" ros-packages-find-file-in-package)
+  ("F" ros-packages-find-file-in-package)
+  ("f" ros-packages-find-file-in-current-package)
   ("s" nil)
+  ("S" nil)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
