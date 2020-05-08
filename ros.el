@@ -336,14 +336,18 @@ If called interactively prompt for action from history."
   "Generate a clean action to clean PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "clean" :args package :flags flags :post-cmd nil))
 
+(defun ros-catkin-clean-flags ()
+  "Parse flags for ros-catkin-clean action."
+  (cons "--yes" (transient-args  'ros-catkin-clean-transient)))
+
 (defun ros-catkin-run-clean (package &optional flags)
   "Run a clean action to clean PACKAGE with FLAGS."
-  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-clean-transient)))
+  (interactive (list (ros-catkin-completing-read-ros-package) (ros-catkin-clean-flags)))
   (ros-catkin-compile (ros-catkin-clean-action :package package :flags flags)))
 
 (defun ros-catkin-run-clean-current-workspace (&optional flags)
   "Run a clean action to clean the current workspace with FLAGS."
-  (interactive (list (transient-args 'ros-catkin-clean-transient)))
+  (interactive (list (ros-catkin-clean-flags)))
   (ros-catkin-run-clean " " flags))
 
 (define-transient-command ros-catkin-clean-transient ()
