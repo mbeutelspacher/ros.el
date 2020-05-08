@@ -81,7 +81,7 @@ or the host system if `ros-current-tramp-prefix' is nil."
   (let* ((command (if not-source cmd (format "%s && %s" (ros-shell-source-command) cmd) ))
          (process (with-shell-interpreter :path (concat ros-current-tramp-prefix ros-current-workspace):form
                                           (start-process-shell-command buffer buffer (format "/bin/bash  -c \"%s\"" command)))))
-    
+
     (view-buffer-other-window (process-buffer process))
     (ros-process-mode)))
 
@@ -737,7 +737,7 @@ and lastly the beginning of the buffer."
   "
 _c_: Catkin              _d_: Debug        _e_: Environment     _m_: Messages
 _n_: Nodes               _p_: Packages     _P_: Parameters      _s_: Services
-_S_: Active Services     _t_: Topics       
+_S_: Active Services     _t_: Topics
 "
   ("c" hydra-ros-catkin/body)
   ("e" hydra-ros-environment/body)
@@ -754,7 +754,7 @@ _S_: Active Services     _t_: Topics
 
 (defhydra hydra-ros-catkin (:color blue :hint nil :foreign-keys warn)
   "
-_b_: build  _c_: config  _r_: redo  _x_: clean 
+_b_: build  _c_: config  _r_: redo  _x_: clean
 "
   ("b" ros-catkin-build-transient)
   ("c" ros-catkin-config-transient)
@@ -765,7 +765,7 @@ _b_: build  _c_: config  _r_: redo  _x_: clean
 
 (defhydra hydra-ros-environment (:color blue :hint nil :foreign-keys warn)
   "
-_w_: Set Workspace 
+_w_: Set Workspace
 "
   ("w" ros-set-workspace)
   ("q" nil "quit hydra")
@@ -773,7 +773,7 @@ _w_: Set Workspace
 
 (defhydra hydra-ros-messages (:color blue :hint nil :foreign-keys warn)
   "
-_i_: Insert message type at point               _s_: Show message 
+_i_: Insert message type at point               _s_: Show message
 _I_: Insert import statement for message type
 "
   ("i" ros-msg-insert)
@@ -805,7 +805,7 @@ _s_: Show node
 
 (defhydra hydra-ros-services (:color blue :hint nil :foreign-keys warn)
   "
-_i_: Insert service type at point               _s_: Show service 
+_i_: Insert service type at point               _s_: Show service
 _I_: Insert import service for message type
 "
   ("i" ros-srv-insert)
@@ -827,7 +827,7 @@ _s_: Show active Service    _c_: Call active service
   "
 _e_: Echo Topic                   _s_: Show Topic                   _p_: Publish message on topic                   _i_: Insert name of topic at point
 "
-  ("e" ros-topic-echo-transient) 
+  ("e" ros-topic-echo-transient)
   ("s" ros-topic-show)
   ("p" nil)
   ("i" ros-topic-insert)
@@ -837,4 +837,3 @@ _e_: Echo Topic                   _s_: Show Topic                   _p_: Publish
 (provide 'ros)
 
 ;;; ros.el ends here
-
