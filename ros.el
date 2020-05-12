@@ -272,6 +272,10 @@ If called interactively prompt for action from history."
   (interactive (list (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-run-build " " flags))
 
+(cl-defun ros-catkin-build-test-action (&key package flags)
+  "Generate a test action to build tests for PACKAGE with FLAGS."
+  (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args tests" package) :flags flags :post-cmd nil ))
+
 (cl-defun ros-catkin-test-action (&key package flags)
   "Generate a test action to test PACKAGE with FLAGS."
   (ros-catkin-dump-action :tramp-prefix ros-current-tramp-prefix :workspace ros-current-workspace :profile ros-current-profile :verb "build" :args (format "%s --no-deps --catkin-make-args run_tests" package) :flags flags :post-cmd (concat "catkin_test_results build/" package)))
@@ -288,6 +292,11 @@ If called interactively prompt for action from history."
   "Run a test action to-test PACKAGE with FLAGS."
   (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
   (ros-catkin-compile (ros-catkin-test-action :package package :flags flags)))
+
+(defun ros-catkin-build-test (package &optional flags)
+  "Build a test action to-test PACKAGE with FLAGS."
+  (interactive (list (ros-catkin-completing-read-ros-package) (transient-args 'ros-catkin-build-transient)))
+  (ros-catkin-compile (ros-catkin-build-test-action :package package :flags flags)))
 
 (defun ros-catkin-run-single-rostest (package &optional flags)
   "Run a test action to run single rostest in PACKAGE with FLAGS."
@@ -328,6 +337,7 @@ If called interactively prompt for action from history."
    ("p" "Build a package" ros-catkin-run-build)
    ("w" "Build current workspace" ros-catkin-run-build-current-workspace)
    ("t" "Test a package" ros-catkin-run-test)
+   ("T" "Build tests for a package" ros-catkin-build-test)
    ("r" "Build and run a single rostest" ros-catkin-run-single-rostest)
    ("g" "Build and run a single gtest" ros-catkin-run-single-gtest)
    ])
