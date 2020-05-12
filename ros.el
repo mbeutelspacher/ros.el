@@ -138,7 +138,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
 
 Paths will be relative to root of package."
   (let ((path (ros-packages-locate-package package)))
-    (mapcar (lambda (f) (file-relative-name f path)) (directory-files-recursively path ".*" nil (lambda (d) (not (s-starts-with-p "." (file-name-nondirectory d))))))))
+    (mapcar (lambda (f) (file-relative-name f path)) (seq-filter (lambda (f) (not (s-ends-with-p ".idx" f))) (directory-files-recursively path ".*" nil)))))
 
 (defun ros-packages-find-file-in-package (package)
   "Find file in PACKAGE."
