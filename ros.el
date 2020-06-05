@@ -135,19 +135,23 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   "Return path to PACKAGE."
   (ros-shell-command-to-string (concat "rospack find " package)))
 
+(defun ros-list-files-in-directory (directory)
+  "Return list of all files in DIRECTORY and its subdirectories."
+  (ros-shell-command-to-list (format "find %s" directory)))
+
 (defun ros-packages-list-files-in-package (package)
   "Return list of files in PACKAGE.
 
 Paths will be relative to root of package."
   (let ((path (ros-packages-locate-package package)))
-    (mapcar (lambda (f) (file-relative-name f path)) (seq-filter (lambda (f) (not (s-ends-with-p ".idx" f))) (directory-files-recursively path ".*" nil)))))
+    (mapcar (lambda (f) (file-relative-name f path)) (seq-filter (lambda (f) (not (s-ends-with-p ".idx" f))) (ros-list-files-in-directory path)))))
 
 (defun ros-packages-find-file-in-package (package)
   "Find file in PACKAGE."
   (interactive (list (ros-completing-read-ros-package)))
   (let ((path (ros-packages-locate-package package))
         (file (completing-read "File: " (ros-packages-list-files-in-package package) nil t)))
-    (find-file (concat (file-name-as-directory path) file))))
+    (find-file (concat ros-current-tramp-prefix (file-name-as-directory path) file))))
 
 (defun ros-packages-find-file-in-current-package ()
   "Find file in PACKAGE."
