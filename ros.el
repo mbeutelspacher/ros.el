@@ -117,7 +117,7 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
   (interactive)
   (let* ((tramp-prefix-user (completing-read "Tramp prefix: " (kvalist->keys ros-workspaces) nil t nil nil (if ros-current-tramp-prefix ros-current-tramp-prefix "localhost")))
          (tramp-prefix (when (not (string= tramp-prefix-user "localhost")) tramp-prefix-user))
-         (workspace (completing-read "Workspace: " (cdr (assoc tramp-prefix ros-workspaces)) nil t nil nil ros-current-workspace))
+         (workspace (completing-read "Workspace: " (cdr (assoc tramp-prefix-user ros-workspaces)) nil t nil nil ros-current-workspace))
          (profile (completing-read "Profile: " (ros-catkin-list-profiles workspace tramp-prefix) nil t nil nil ros-current-profile)))
     (setq ros-current-tramp-prefix tramp-prefix)
     (setq ros-current-workspace workspace)
