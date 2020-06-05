@@ -106,18 +106,20 @@ if `ros-current-workspace' is nil, source /opt/ros/`ros-version'/setup.bash inst
               (ros-catkin-locate-devel))
     (format "source /opt/ros/%s/setup.bash" ros-version)))
 
-(defun ros-catkin-list-profiles (workspace)
-  "Get list of profiles for WORKSPACE."
-  (let ((ros-current-workspace workspace))
+(defun ros-catkin-list-profiles (workspace tramp-prefix)
+  "Get list of profiles for WORKSPACE and TRAMP-PREFIX."
+  (let ((ros-current-workspace workspace)
+        (ros-current-tramp-prefix tramp-prefix))
     (ros-shell-command-to-list "catkin profile list -u" t)))
 
 (defun ros-set-workspace ()
   "Read `ros-current-tramp prefix', `ros-current-workspace' and `ros-current-profile' from `ros-workspaces' and set the corresponding variables."
   (interactive)
-  (let* ((tramp-prefix (completing-read "Tramp prefix: " (kvalist->keys ros-workspaces) nil t nil nil (if ros-current-tramp-prefix ros-current-tramp-prefix "localhost")))
+  (let* ((tramp-prefix-user (completing-read "Tramp prefix: " (kvalist->keys ros-workspaces) nil t nil nil (if ros-current-tramp-prefix ros-current-tramp-prefix "localhost")))
+         (tramp-prefix (when (not (string= tramp-prefix-user "localhost")) tramp-prefix-user))
          (workspace (completing-read "Workspace: " (cdr (assoc tramp-prefix ros-workspaces)) nil t nil nil ros-current-workspace))
-         (profile (completing-read "Profile: " (ros-catkin-list-profiles workspace) nil t nil nil ros-current-profile)))
-    (setq ros-current-tramp-prefix (when (not(string= tramp-prefix "localhost")) tramp-prefix))
+         (profile (completing-read "Profile: " (ros-catkin-list-profiles workspace tramp-prefix) nil t nil nil ros-current-profile)))
+    (setq ros-current-tramp-prefix tramp-prefix)
     (setq ros-current-workspace workspace)
     (setq ros-current-profile profile)))
 
