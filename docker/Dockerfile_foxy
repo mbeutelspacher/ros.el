@@ -1,0 +1,8 @@
+FROM ros:foxy
+RUN apt-get update &&\
+    apt-get upgrade -y
+RUN apt-get -y install python3-colcon-common-extensions  git && \
+    mkdir -p /ws/src &&\
+    git clone https://github.com/ros-planning/navigation2_tutorials /ws/src/navigation2_tutorials &&\
+    rosdep install --from-paths /ws/src --ignore-src -ry
+RUN /bin/bash -c "cd /ws &&source /opt/ros/foxy/setup.bash && colcon build --packages-up-to sam_bot_description"

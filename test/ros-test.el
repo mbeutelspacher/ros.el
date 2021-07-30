@@ -3,6 +3,9 @@
 ;; Copyright (C) 2013 Max Beutelspacher
 
 ;; Author: Max Beutelspacher <max.beutelspacher@mailbox.org>
+;; URL: https://github.com/DerBeutlin/ros.el
+;; Version: 0.1
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -24,148 +27,233 @@
 ;; Tests for ros.el
 
 ;;; Code:
-
-(require 'ert)
 (require 'ros)
 
-(ert-deftest ros-test-default-workspace-is-used-when-no-workspace-is-set ()
-  (let ((ros-current-workspace nil)
-        (ros-default-workspace "~/catkin_ws"))
-    (should (string= (ros-current-workspace) ros-default-workspace))))
+(describe "ROS 1 Tests"
+  :var (docker-name)
+  (before-all
+    (progn (shell-command "docker build . -t ros-el-noetic -f docker/Dockerfile_noetic")
+           (setq docker-name (substring (s-trim(shell-command-to-string "docker run -it -d --name ros-el-noetic ros-el-noetic"))0 12))))
+  (before-each  (progn (setq ros-workspaces (list (ros-dump-workspace :tramp-prefix (format "/docker:root@%s:" docker-name) :workspace "/ws" :extends '("/opt/ros/noetic/")) (ros-dump-workspace :tramp-prefix "" :workspace "/ws" :extends '("/opt/ros/noetic/")))) (setq ros-cache nil)) (setq ros-current-workspace (car ros-workspaces)))
+  (after-all
+    (shell-command "docker stop ros-el-noetic && docker rm ros-el-noetic"))
+  (describe "Correct source command"
+    (it "returns the correct source command"
+      (expect (ros-current-source-command) :to-equal "source /opt/ros/noetic/setup.bash && test -f /ws/install/setup.bash && source /ws/install/setup.bash || true")))
+  (describe "Run Shell commands"
+    (it "on local machine"
+      (let ((ros-current-workspace (cl-second ros-workspaces)))
+        (expect (ros-shell-command-to-string "hostname") :to-equal (s-trim(shell-command-to-string "hostname")))))
+    (it "on docker machine"
+      (expect (ros-shell-command-to-string "hostname") :to-equal docker-name)))
+  (describe "Detect ROS Version"
+    (it "detect ROS1"
+      (expect (ros-current-version) :to-equal 1)))
+  (describe "Packages"
+    (it "List packages in workspace"
+      (expect (ros-list-packages) :to-contain "navigation_tutorials"))
+    (it "Get location of package"
+      (let ((package-location-list (ros-list-package-locations)))
+        (expect (kvalist->keys package-location-list) :to-contain "navigation_tutorials")
+        (expect (cdr (assoc "navigation_tutorials" package-location-list)) :to-equal "/ws/src/navigation_tutorials/navigation_tutorials")))
 
-(ert-deftest ros-test-current-workspace-is-used-if-set ()
-  (let ((ros-default-workspace "~/catkin_ws")
-        (ros-current-workspace "~/catkin_ws2"))
-    (should (string= (ros-current-workspace) ros-current-workspace)))
-  )
+    (it "List files of package"
+      (let ((files (ros-package-files "navigation_tutorials")))
+        (expect files :to-contain "package.xml")
+        (expect files :to-contain "CMakeLists.txt")))
+    (it  "Detect current package"
+      (let ((default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace) "/src/navigation_tutorials/roomba_stage/maps")))
+        (expect (ros-current-package) :to-equal "roomba_stage")))
+    (it  "current package returns nil if no package"
+      (let ((default-directory (concat (ros-current-tramp-prefix) "~")))
+        (expect (ros-current-package) :to-equal nil))))
+  (describe "Colcon actions"
+    (it "Can Load dumped colcon action"
+      (expect (ros-load-colcon-action
+               (ros-dump-colcon-action
+                :workspace ros-current-workspace
+                :verb "build"
+                :flags '("--continue-on-error" "--packages-up-to navigation_tutorials") :post-cmd "echo foobar"))
+              :to-equal (concat (ros-current-source-command) " && colcon build --continue-on-error --packages-up-to navigation_tutorials && echo foobar"))))
 
-(ert-deftest ros-test-shell-output-as-list ()
-  (should (cl-every 'string=
-                    (ros-shell-output-as-list "for VAR in 1 2 3 4 5; do; echo $VAR;done;")
-                    '("1" "2" "3" "4" "5"))))
+  (describe "Work with messages and Services and Actions"
+    (it "Can List messages"
+      (let ((msgs (ros-list-messages)))
+        (expect msgs :to-contain "std_msgs/String")
+        (expect msgs :to-contain "nav_msgs/Path")))
+    (it "Can insert Message Name in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-message "std_msgs/String")
+        (expect (s-trim (buffer-string)) :to-equal "String")))
+    (it "Can insert  Message Import in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-message-import "std_msgs/String" (point))
+        (expect (s-trim (buffer-string)) :to-equal "from std_msgs.msg import String")))
+    (it "Can insert Message Name in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-message "std_msgs/String")
+        (expect (s-trim (buffer-string)) :to-equal "std_msgs::String")))
+    (it "Can insert  Message Import in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-message-import "std_msgs/String" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <std_msgs/String.h>")))
+    (it "Can List srvs"
+      (let ((srvs (ros-list-srvs)))
+        (expect srvs :to-contain "nav_msgs/LoadMap")
+        (expect srvs :to-contain "std_srvs/SetBool")))
+    (it "Can insert srv Name in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-srv "std_srvs/Trigger")
+        (expect (s-trim (buffer-string)) :to-equal "Trigger")))
+    (it "Can insert srv import in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-srv-import "std_srvs/Trigger" (point))
+        (expect (s-trim (buffer-string)) :to-equal "from std_srvs.srv import Trigger")))
+    (it "Can insert srv Name in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-srv "std_srvs/Trigger")
+        (expect (s-trim (buffer-string)) :to-equal "std_srvs::Trigger")))
+    (it "Can insert srv import in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-srv-import "std_srvs/Trigger" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <std_srvs/Trigger.h>"))))
 
-(ert-deftest ros-test-package-list ()
-  (should (member "roscpp" (ros-packages))))
+  (describe "Cache"
+    (it "Can Store And Retrieve in the cache"
+      (ros-cache-store  "messages"  (list "std_msgs/String"))
+      (expect (ros-cache-load "messages") :to-equal (list "std_msgs/String")))
+    (it "Always takes the newest Value"
+      (ros-cache-store "messages" (list  "std_msgs/String"))
+      (ros-cache-store "messages" (list "nav_msgs/Path"))
+      (expect (ros-cache-load "messages") :to-equal (list "nav_msgs/Path")))
+    (it "If key does not exist run function and store the result in cache"
+      (expect (ros-cache-load "messages" 'ros-list-messages) :to-equal (ros-list-messages))
+      (expect (ros-cache-load "messages") :to-equal (ros-list-messages)))))
 
-(ert-deftest ros-sourcing-command-for-zsh()
-  (skip-unless (string= (getenv "SHELL") "/usr/bin/zsh"))
-  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.zsh")))
-
-(ert-deftest ros-sourcing-command-for-zsh()
-  (skip-unless (string= (getenv "SHELL") "/bin/bash"))
-  (should (string= (ros-source-workspace-command "/opt/ros/melodic") "source /opt/ros/melodic/setup.bash")))
-
-(ert-deftest ros-test-generic-list-msg  ()
-  (should (member "std_msgs/String" (ros-generic-list "msg")))
-  )
-(ert-deftest ros-generic-get-msg-returns-msg ()
-  (should (string= (s-trim (ros-generic-get-info "msg" "std_msgs/String")) "string data")))
-
-(ert-deftest ros-test-generic-list-topic ()
-  (with-roscore
-   (should (member "/rosout" (ros-generic-list "topic")))))
-
-(ert-deftest ros-test-generic-list-node ()
-  (with-roscore
-   (should (member "/rosout" (ros-generic-list "node")))))
-
-(ert-deftest ros-test-generic-list-services ()
-  (with-roscore
-   (should (member "/rosout/get_loggers" (ros-generic-list "service")))))
-
-
-(ert-deftest ros-insert-msg-python-import-statement()
-  (with-temp-buffer
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python--import-statement-do-not-import-twice()
-  (with-temp-buffer
-    (python-mode)
-    (insert "\n")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "from package.msg import FooMsg"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python-import-statement-with-same-package-already-present ()
-  (with-temp-buffer
-    (insert "from package.msg import TestMsg\nfoo\nbar")
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (buffer-string) "from package.msg import TestMsg, FooMsg\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-python-import-statement-import-next-to-other-imports()
-  (with-temp-buffer
-    (insert "foo\nbar\nimport test\nfoo\nbar")
-    (python-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (buffer-string) "foo\nbar\nimport test\nfrom package.msg import FooMsg\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement()
-  (with-temp-buffer
-    (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-do-not-import-twice()
-  (with-temp-buffer
-    (c++-mode)
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <package/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-same-package()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "package/FooMsg")
-    (ros-insert-import "msg" "package/FooMsg2")
-    (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <package/FooMsg.h>\n#include <package/FooMsg2.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-other-msg()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "#include <foo/bar.h>")
-    (ros-insert-import "msg" "std_msgs/FooMsg")
-    (ros-insert-import "msg" "other_msgs/FooMsg")
-    (should (string= (s-trim (buffer-string)) "#include <foo/bar.h>\n#include <std_msgs/FooMsg.h>\n#include <other_msgs/FooMsg.h>"))
-    )
-  )
-
-(ert-deftest ros-insert-msg-cpp-import-statement-next-to-other-imports-other-includes()
-  (with-temp-buffer
-    (c++-mode)
-    (insert "foo\nbar\n")
-    (insert "#include <foo/bar.h>\n")
-    (insert "foo\nbar\n")
-    (ros-insert-import "msg" "package/FooMsg")
-    (should (string= (s-trim (buffer-string)) "foo\nbar\n#include <foo/bar.h>\n#include <package/FooMsg.h>\nfoo\nbar"))
-    )
-  )
-
-(ert-deftest ros-parse-package-xml-for-package-name-returns-correct-name()
-  (let ((path "/opt/ros/melodic/share/geometry_msgs/package.xml"))
-    (should (string= (ros-parse-package-xml-for-package path) "geometry_msgs"))
-    )
-  )
+(describe "ROS 2 Tests"
+  :var (docker-name)
+  (before-all
+    (progn (shell-command "docker build . -t ros-el-foxy -f docker/Dockerfile_foxy")
+           (setq docker-name (substring (s-trim(shell-command-to-string "docker run -it -d --name ros-el-foxy ros-el-foxy"))0 12))))
+  (before-each  (progn  (setq ros-workspaces (list (ros-dump-workspace :tramp-prefix (format "/docker:root@%s:" docker-name) :workspace "/ws" :extends '("/opt/ros/foxy/")) (ros-dump-workspace :tramp-prefix "" :workspace "/ws" :extends '("/opt/ros/foxy/")))) (setq ros-cache nil)) (setq ros-current-workspace (car ros-workspaces)))
+  (after-all
+    (shell-command "docker stop ros-el-foxy && docker rm ros-el-foxy"))
+  (describe "Detect ROS Version"
+    (it "detect ROS2"
+      (expect (ros-current-version) :to-equal 2)))
+  (describe "Packages"
+    (it "List packages in workspace"
+      (expect (ros-list-packages) :to-contain "sam_bot_description"))
+    (it "Get location of package"
+      (let ((package-location-list (ros-list-package-locations)))
+        (expect (kvalist->keys package-location-list) :to-contain "sam_bot_description")
+        (expect (cdr (assoc "sam_bot_description" package-location-list)) :to-equal "/ws/src/navigation2_tutorials/sam_bot_description")))
+    (it "List files of package"
+      (let ((files (ros-package-files "sam_bot_description")))
+        (expect files :to-contain "package.xml")
+        (expect files :to-contain "CMakeLists.txt")
+        (expect files :to-contain "launch/display.launch.py")))
+    (it  "Detect current package"
+      (let ((default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace) "/src/navigation2_tutorials/sam_bot_description")))
+        (expect (ros-current-package) :to-equal "sam_bot_description"))))
 
 
 
-(provide 'ros-test)
+  (describe "Work with messages and srvs"
+    (it "Can List messages"
+      (let ((msgs (ros-list-messages)))
+        (expect msgs :to-contain "std_msgs/msg/String")
+        (expect msgs :to-contain "nav_msgs/msg/Path")))
+    (it "Can List services"
+      (let ((srvs (ros-list-srvs)))
+        (expect srvs :to-contain "nav_msgs/srv/GetMap")
+        (expect srvs :to-contain "std_srvs/srv/SetBool")))
+    (it "Can List actions"
+      (let ((actions (ros-list-actions)))
+        (expect actions :to-contain "nav2_msgs/action/Wait")
+        (expect actions :to-contain "test_msgs/action/Fibonacci")))
+    (it "Can insert Message Name in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-message "std_msgs/msg/String")
+        (expect (s-trim (buffer-string)) :to-equal "String")))
+    (it "Can insert  Message Import in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-message-import "std_msgs/msg/String" (point))
+        (expect (s-trim (buffer-string)) :to-equal "from std_msgs.msg import String")))
+    (it "Can insert Message Name in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-message "std_msgs/msg/String")
+        (expect (s-trim (buffer-string)) :to-equal "std_msgs::msg::String")))
+    (it "Can insert  Message Import in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-message-import "std_msgs/msg/String" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <std_msgs/msg/string.hpp>")))
+    (it "Can insert  Message Import in c++ with camel case to snake case"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-message-import "ackermann_msgs/msg/AckermannDrive" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <ackermann_msgs/msg/ackermann_drive.hpp>")))
+    (it "Can insert Srv Name in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-srv "std_srvs/srv/Trigger")
+        (expect (s-trim (buffer-string)) :to-equal "Trigger")))
+    (it "Can insert Srv import in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-srv-import "std_srvs/srv/Trigger" (point))
+        (expect (s-trim (buffer-string)) :to-equal "from std_srvs.srv import Trigger")))
+    (it "Can insert Srv Name in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-srv "std_srvs/srv/Trigger")
+        (expect (s-trim (buffer-string)) :to-equal "std_srvs::srv::Trigger")))
+    (it "Can insert Srv Import in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-srv-import "std_srvs/srv/Trigger" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <std_srvs/srv/trigger.hpp>")))
+    (it "Can insert Action Name in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-action  "nav2_msgs/action/Wait")
+        (expect (s-trim (buffer-string)) :to-equal "Wait")))
+    (it "Can insert Action import in python"
+      (with-temp-buffer
+        (python-mode)
+        (ros-insert-action-import  "nav2_msgs/action/Wait" (point))
+        (expect (s-trim (buffer-string)) :to-equal "from nav2_msgs.action import Wait")))
+    (it "Can insert Action Name in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-action  "nav2_msgs/action/Wait")
+        (expect (s-trim (buffer-string)) :to-equal "nav2_msgs::action::Wait")))
+    (it "Can insert Action Import in c++"
+      (with-temp-buffer
+        (c++-mode)
+        (ros-insert-action-import  "nav2_msgs/action/Wait" (point))
+        (expect (s-trim (buffer-string)) :to-equal "#include <nav2_msgs/action/wait.hpp>")))))
+
+
+
+
+
+
+
+
+
+
 
 ;;; ros-test.el ends here

@@ -1,16 +1,21 @@
+(source gnu)
 (source melpa)
 
 (package-file "ros.el")
+;; Project Dependencies
+(depends-on "dash")
 (depends-on "s")
+(depends-on "kv")
+(depends-on "cl-lib")
+(depends-on "with-shell-interpreter")
+(depends-on "docker-tramp")
+(depends-on "transient")
+(depends-on "hydra")
+(depends-on "grep")
+(depends-on "avy")
+(depends-on "string-inflection")
 
+;; Additional Testing Dependencies
 (development
- (depends-on "ert")
- (depends-on "flycheck")
- (depends-on "flycheck-cask")
- (depends-on "f")
- (depends-on "ecukes")
- (depends-on "ert-runner")
- (depends-on "el-mock")
- (depends-on "cask-package-toolset")
- (depends-on "undercover")
- (depends-on "package-lint"))
+ (depends-on "buttercup")
+ (depends-on "faceup"))
