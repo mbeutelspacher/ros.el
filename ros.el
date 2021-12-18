@@ -374,11 +374,14 @@
 (defun ros-colcon-build-package (package &optional flags test)
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-  (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat "--packages-up-to " package)) flags)  :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose")))))
+(let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
+         (is-isolated (member "ISOLATED" flags)))
+    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
 (defun ros-colcon-build-workspace (&optional flags test)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-  (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose")))))
+  (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED")) )flags)))
+  (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
 (defvar ros-additional-cmake-args nil)
 
@@ -414,6 +417,7 @@
 (define-transient-command ros-colcon-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
+   ("-i" "only build the package not its dependencies" "ISOLATED")
    ("-c" "continue on failure" "--continue-on-error")
    ("-C" "clean first" "--cmake-clean-first")
    ("-fc" "force CMake configure step" "--cmake-force-configure")
