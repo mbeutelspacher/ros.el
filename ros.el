@@ -360,7 +360,7 @@
 
 (defun ros-colcon-build-and-test-current-package (&optional flags use-tcr)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
-  (ros-colcon-build-current-package flags t))
+  (ros-colcon-build-current-package flags t use-tcr))
 
 (defun ros-colcon-build-and-test-current-package-with-tcr (&optional flags)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
