@@ -68,11 +68,11 @@
   (interactive)
   (setq ros-cache nil))
 
-(defun ros-source-command (workspace)
+(defun ros-source-command (workspace &optional use-to-build)
   (let ((extends (cdr (assoc "extends" workspace)))
         (ws-setup-bash (concat (file-name-as-directory (cdr (assoc "workspace" workspace))) "install/setup.bash")))
-    (concat (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))
-  )
+    (concat (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") (unless use-to-build (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))))
+
 
 (cl-defun ros-dump-workspace (&key tramp-prefix workspace extends)
   (list (cons "tramp-prefix"  tramp-prefix)
@@ -89,7 +89,7 @@
 (defun ros-shell-command-to-string (cmd &optional use-default-directory)
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
     (with-shell-interpreter :path path :form
-      (s-trim(shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd ))))))
+      (s-trim(shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -106,19 +106,19 @@
 
 (defun ros-package-files (package-name)
   (ros-cache-load (concat "package" "_" package-name)
-                   (lambda nil
-                     (let ((package-path (concat (ros-current-tramp-prefix)
-                                                 (cdr (assoc package-name (ros-list-package-locations))) "/")))
-                       (mapcar (lambda (str) (string-trim-left str package-path))
-                               (directory-files-recursively package-path ".*"
-                                                            nil
-                                                            (lambda (subdir) (not (string-prefix-p "." (file-name-nondirectory subdir))))))) )))
+                  (lambda nil
+                    (let ((package-path (concat (ros-current-tramp-prefix)
+                                                (cdr (assoc package-name (ros-list-package-locations))) "/")))
+                      (mapcar (lambda (str) (string-trim-left str package-path))
+                              (directory-files-recursively package-path ".*"
+                                                           nil
+                                                           (lambda (subdir) (not (string-prefix-p "." (file-name-nondirectory subdir))))))))))
 
 (defun ros-set-workspace ()
   (interactive)
   (let ((descriptions (mapcar 'ros-workspace-to-string ros-workspaces)))
-    (setq ros-current-workspace (nth (cl-position (completing-read "Workspace: " descriptions nil t nil nil (when ros-current-workspace (ros-workspace-to-string ros-current-workspace))) descriptions :test #'equal)  ros-workspaces))
-    ))
+    (setq ros-current-workspace (nth (cl-position (completing-read "Workspace: " descriptions nil t nil nil (when ros-current-workspace (ros-workspace-to-string ros-current-workspace))) descriptions :test #'equal)  ros-workspaces))))
+
 
 (defun ros-completing-read-package ()
   (let ((packages (ros-list-packages))
@@ -312,11 +312,11 @@
 
 (defun ros-load-colcon-action (action)
   (let* ((ros-current-workspace (cdr (assoc "workspace" action)))
-         (source-command (ros-source-command ros-current-workspace))
+         (source-command (ros-source-command ros-current-workspace t))
          (verb (cdr (assoc "verb" action)))
          (flags (cdr (assoc "flags" action)))
-         (post-cmd (cdr (assoc "post-cmd" action)))
-         )
+         (post-cmd (cdr (assoc "post-cmd" action))))
+
     (concat source-command " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
 
 (defun ros-compile-action (action)
@@ -326,8 +326,8 @@
          (default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace))))
     (ros-push-colcon-action-to-history action)
     (compile (format "/bin/bash -c \"%s\"" (ros-load-colcon-action action)))
-    (other-window -1)
-    ))
+    (other-window -1)))
+
 
 (defun ros-push-colcon-action-to-history (action)
   (when (member action ros-colcon-action-history) (setq ros-colcon-action-history (remove action ros-colcon-action-history)))
@@ -349,8 +349,8 @@
   (let* ((history-strings (cl-mapcar 'ros-display-colcon-action ros-colcon-action-history))
          (action-string (completing-read "Action: " history-strings nil t))
          (index (seq-position history-strings action-string)))
-    (nth index ros-colcon-action-history))
-  )
+    (nth index ros-colcon-action-history)))
+
 
 (defun ros-current-package ()
   (let ((default-directory (locate-dominating-file default-directory "package.xml")))
@@ -374,14 +374,14 @@
 (defun ros-colcon-build-package (package &optional flags test)
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-(let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
-         (is-isolated (member "ISOLATED" flags)))
+  (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
+        (is-isolated (member "ISOLATED" flags)))
     (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
 (defun ros-colcon-build-workspace (&optional flags test)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED")) )flags)))
-  (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
+    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
 (defvar ros-additional-cmake-args nil)
 
@@ -424,15 +424,15 @@
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
-   (ros-colcon-build-transient:--parallel-workers)
-   ]
+   (ros-colcon-build-transient:--parallel-workers)]
+
   ["Actions"
    ("p" "Build current package" ros-colcon-build-current-package)
    ("P" "Build a package" ros-colcon-build-package)
    ("w" "Build current workspace" ros-colcon-build-workspace)
    ("t" "Build and test current package" ros-colcon-build-and-test-current-package)
-   ("T" "Build and test a package" ros-colcon-build-and-test-package)
-   ])
+   ("T" "Build and test a package" ros-colcon-build-and-test-package)])
+
 
 (defun ros-colcon-test-current-package (&optional flags)
   (interactive (list (transient-args 'ros-colcon-test-transient)))
@@ -467,13 +467,13 @@
    ("-a" "abort on error" "--abort-on-error")
    (ros-colcon-build-transient:--parallel-workers)
    (ros-colcon-test-transient:--retest-until-fail)
-   (ros-colcon-test-transient:--retest-until-pass)
-   ]
+   (ros-colcon-test-transient:--retest-until-pass)]
+
   ["Actions"
    ("p" "Test current package" ros-colcon-test-current-package)
    ("P" "Test a package" ros-colcon-test-package)
-   ("w" "Test current workspace" ros-colcon-test-workspace)
-   ])
+   ("w" "Test current workspace" ros-colcon-test-workspace)])
+
 
 
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
