@@ -405,7 +405,7 @@
          (cmake-args-flags (seq-filter is-cmake-args flags)))
     (append flags-without-cmake-args '("--cmake-args") (mapcar (lambda (f) (string-trim-left f "--cmake-args")) cmake-args-flags) ros-additional-cmake-args)))
 
-(define-infix-argument ros-colcon-build-transient:--DCMAKE_BUILD_TYPE()
+(transient-define-infix ros-colcon-build-transient:--DCMAKE_BUILD_TYPE()
   :description "-DCMAKE_BUILD_TYPE"
   :class 'transient-switches
   :key "-bt"
@@ -413,7 +413,7 @@
   :argument-regexp "\\(--cmake-args -DCMAKE_BUILD_TYPE=\\(Release\\|Debug\\|RelWithDebInfo\\|MinSizeRel\\)\\)"
   :choices '("Release" "Debug" "RelWithDebInfo" "MinSizeRel"))
 
-(define-infix-argument ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS()
+(transient-define-infix ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS()
   :description "-DCMAKE_EXPORT_COMPILE_COMMANDS"
   :class 'transient-switches
   :key "-ec"
@@ -421,14 +421,14 @@
   :argument-regexp "\\(--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=\\(ON\\|OFF\\)\\)"
   :choices '("ON" "OFF"))
 
-(define-infix-argument ros-colcon-build-transient:--parallel-workers()
+(transient-define-infix ros-colcon-build-transient:--parallel-workers()
   :description "The maximum number of packages to process in parallel"
   :class 'transient-option
   :shortarg "-pw"
   :argument "--parallel-workers "
   :reader 'transient-read-number-N+)
 
-(define-transient-command ros-colcon-build-transient ()
+(transient-define-prefix ros-colcon-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
    ("-i" "only build the package not its dependencies" "ISOLATED")
@@ -470,21 +470,21 @@
   (interactive (list (transient-args 'ros-colcon-test-transient)))
   (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "test" :flags flags :post-cmd  "colcon test-result --verbose")))
 
-(define-infix-argument ros-colcon-test-transient:--retest-until-fail()
+(transient-define-argument ros-colcon-test-transient:--retest-until-fail()
   :description "Rerun tests up to N times if they pass"
   :class 'transient-option
   :shortarg "-rp"
   :argument "--retest-until-fail "
   :reader 'transient-read-number-N+)
 
-(define-infix-argument ros-colcon-test-transient:--retest-until-pass()
+(transient-define-argument ros-colcon-test-transient:--retest-until-pass()
   :description "Rerun failing tests up to N times"
   :class 'transient-option
   :shortarg "-rf"
   :argument "--retest-until-pass "
   :reader 'transient-read-number-N+)
 
-(define-transient-command ros-colcon-test-transient ()
+(transient-define-prefix ros-colcon-test-transient ()
   "Transient command for catkin build."
   ["Arguments"
    ("-a" "abort on error" "--abort-on-error")
