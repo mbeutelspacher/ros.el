@@ -74,7 +74,7 @@
                 :workspace ros-current-workspace
                 :verb "build"
                 :flags '("--continue-on-error" "--packages-up-to navigation_tutorials") :post-cmd "echo foobar"))
-              :to-equal (concat (ros-current-source-command) " && colcon build --continue-on-error --packages-up-to navigation_tutorials && echo foobar"))))
+              :to-equal (concat "source /opt/ros/noetic/setup.bash && colcon build --continue-on-error --packages-up-to navigation_tutorials && echo foobar"))))
 
   (describe "Work with messages and Services and Actions"
     (it "Can List messages"
