@@ -27,8 +27,8 @@ Since ros.el supports ROS1 and ROS2, it uses [[https://colcon.readthedocs.io/en/
    #+BEGIN_SRC emacs-lisp
 (setq ros-workspaces
       (list
-       (ros2-dump-workspace :tramp-prefix nil :workspace "~/main_ws" :extends '("/opt/ros/noetic/"))
-       (ros2-dump-workspace :tramp-prefix nil :workspace "~/overlay_ws" :extends '("/opt/ros/noetic/" "~/main_ws/install"))))
+       (ros-dump-workspace :tramp-prefix nil :workspace "~/main_ws" :extends '("/opt/ros/noetic/"))
+       (ros-dump-workspace :tramp-prefix nil :workspace "~/overlay_ws" :extends '("/opt/ros/noetic/" "~/main_ws/install"))))
    #+END_SRC
 
    The =tramp-prefix= can be used to setup remote workspaces over ssh or in docker containers
