@@ -1,21 +1,36 @@
-;;; ros.el --- Description -*- lexical-binding: t; -*-
+;;; ros.el --- Package to write code for ROS systems -*- lexical-binding: t; -*-
 ;;
 ;; Copyright (C) 2021 Max Beutelspacher
 ;;
 ;; Author: Max Beutelspacher <https://github.com/mtb>
 ;; Maintainer: Max Beutelspacher <max@beutelspacher.eu>
 ;; Created: February 14, 2021
-;; Modified: February 14, 2021
 ;; Version: 1.0.0
-;; Keywords: Symbol’s value as variable is void: finder-known-keywords
+;; Keywords: convenience tools
 ;; Homepage: https://github.com/DerBeutlin/ros.el
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "25.1"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
+;; ; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;
 ;;; Commentary:
 ;;
-;;  Description
+;; A package to ease the development of ROS software in C++ and python..
+;; This includes the interaction with the colcon build system, interactively exploring
+;; messages, topics, and services, as well as some convenience functions when coding for ROS in
+;; C++ and Python.
 ;;
 ;;; Code:
 
