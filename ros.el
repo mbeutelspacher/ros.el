@@ -443,12 +443,20 @@
   :argument "--parallel-workers "
   :reader 'transient-read-number-N+)
 
-(transient-define-prefix ros-colcon-build-transient ()
+(define-infix-argument ros-colcon-build-transient:--parallel-workers()
+  :description "The maximum number of packages to process in parallel"
+  :class 'transient-option
+  :shortarg "-pw"
+  :argument "--parallel-workers "
+  :choices 'transient-read-number-N+)
+
+(define-transient-command ros-colcon-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
    ("-i" "only build the package not its dependencies" "ISOLATED")
    ("-c" "continue on failure" "--continue-on-error")
-   ("-C" "clean first" "--cmake-clean-first")
+   ("-K" "clean first" "--cmake-clean-first")
+   ("-C" "Use CCache" "--cmake-args \"-DCMAKE_C_COMPILER_LAUNCHER=ccache\" \"-DCMAKE_CXX_COMPILER_LAUNCHER=ccache\"")
    ("-fc" "force CMake configure step" "--cmake-force-configure")
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
