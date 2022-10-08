@@ -43,7 +43,6 @@
 (require 'hydra)
 (require 'grep)
 (require 'string-inflection)
-(require 'avy)
 
 (defvar ros-tramp-prefix "")
 
@@ -192,7 +191,12 @@
   (let ((avy-all-windows nil))
     (save-excursion
       (goto-char (point-min))
-      (avy--line nil (point-min) (point-max)))))
+      (cond
+       ((require 'avy nil nil)
+        (avy--line nil (point-min) (point-max)))
+       ((require 'consult nil nil)
+        (marker-position (consult-line)))
+       (t (user-error "You need to install `avy' or `consult' to use this feature."))))))
 
 (defun ros-insert-message (msg)
   (interactive (list (ros-completing-read-message)))
