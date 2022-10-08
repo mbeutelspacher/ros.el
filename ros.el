@@ -36,7 +36,7 @@
 
 (require 's)
 (require 'with-shell-interpreter)
-(require 'docker-tramp)
+(require 'tramp-container)
 (require 'kv)
 (require 'cl-lib)
 (require 'transient)
