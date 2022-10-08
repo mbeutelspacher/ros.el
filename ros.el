@@ -36,13 +36,16 @@
 
 (require 's)
 (require 'with-shell-interpreter)
-(require 'tramp-container)
 (require 'kv)
 (require 'cl-lib)
 (require 'transient)
 (require 'hydra)
 (require 'grep)
 (require 'string-inflection)
+(eval-and-compile
+  (if (>= emacs-major-version 29)
+      (require 'tramp-container)
+    (require 'docker-tramp)))
 
 (defvar ros-tramp-prefix "")
 
