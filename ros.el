@@ -36,14 +36,16 @@
 
 (require 's)
 (require 'with-shell-interpreter)
-(require 'docker-tramp)
 (require 'kv)
 (require 'cl-lib)
 (require 'transient)
 (require 'hydra)
 (require 'grep)
 (require 'string-inflection)
-(require 'avy)
+(eval-and-compile
+  (if (>= emacs-major-version 29)
+      (require 'tramp-container)
+    (require 'docker-tramp)))
 
 (defvar ros-tramp-prefix "")
 
@@ -103,8 +105,9 @@
 
 (defun ros-shell-command-to-string (cmd &optional use-default-directory)
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
-    (with-shell-interpreter :path path :form
-      (s-trim(shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
+    (with-shell-interpreter
+     :path path
+     :form (s-trim (shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -192,7 +195,12 @@
   (let ((avy-all-windows nil))
     (save-excursion
       (goto-char (point-min))
-      (avy--line nil (point-min) (point-max)))))
+      (cond
+       ((require 'avy nil nil)
+        (avy--line nil (point-min) (point-max)))
+       ((require 'consult nil nil)
+        (marker-position (consult-line)))
+       (t (user-error "You need to install `avy' or `consult' to use this feature."))))))
 
 (defun ros-insert-message (msg)
   (interactive (list (ros-completing-read-message)))
