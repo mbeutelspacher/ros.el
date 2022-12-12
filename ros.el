@@ -449,7 +449,7 @@
   :class 'transient-option
   :shortarg "-pw"
   :argument "--parallel-workers "
-  :choices 'transient-read-number-N+)
+  :reader 'transient-read-number-N+)
 
 (transient-define-prefix ros-colcon-build-transient ()
   "Transient command for catkin build."
