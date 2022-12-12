@@ -444,13 +444,6 @@
   :argument-regexp "\\(--cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=\\(ON\\|OFF\\)\\)"
   :choices '("ON" "OFF"))
 
-(transient-define-infix ros-colcon-build-transient:--parallel-workers()
-  :description "The maximum number of packages to process in parallel"
-  :class 'transient-option
-  :shortarg "-pw"
-  :argument "--parallel-workers "
-  :reader 'transient-read-number-N+)
-
 (transient-define-argument ros-colcon-build-transient:--parallel-workers()
   :description "The maximum number of packages to process in parallel"
   :class 'transient-option
