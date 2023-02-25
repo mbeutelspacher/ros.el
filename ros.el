@@ -435,7 +435,7 @@
 (defun ros-get-tcr-command (package)
   (let ((default-directory (cdr (assoc package (ros-list-package-locations)))))
     (let ((git-root-dir (vc-root-dir)))
-      (format "&& (cd %s && git commit -am \"TCR\"; echo \"Commit\" && cd - && exit 0) || (cd %s && git reset --hard HEAD; echo \"Revert\" &&  cd - && exit 1) " git-root-dir git-root-dir))))
+      (format "&& (cd %s && git commit -am \"chore: TCR\"; echo \"Commit\" && cd - && exit 0) || (cd %s && git reset --hard HEAD; echo \"Revert\" &&  cd - && exit 1) " git-root-dir git-root-dir))))
 
 
 (defun ros-colcon-build-package (package &optional flags test use-tcr)
