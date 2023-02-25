@@ -8,7 +8,7 @@
 ;; Version: 1.0.0
 ;; Keywords: convenience tools
 ;; Homepage: https://github.com/DerBeutlin/ros.el
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "27.1"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -81,6 +81,24 @@
   (let ((cached-value (cdr (assoc key (cdr (assoc (ros-cache-key) ros-cache))))))
     (if cached-value cached-value (when generate (progn (ros-cache-store key (funcall generate)) (ros-cache-load key))))))
 
+(defun ros-ignore-package ()
+  (interactive)
+  (ros-ignore-package--helper))
+
+(defun ros-unignore-package ()
+  (interactive)
+  (ros-ignore-package--helper t))
+
+(defun ros-ignore-package--helper (&optional remove)
+  (let* ((locations  (ros-list-package-locations))
+         (candidates (seq-filter (lambda (package) (if (file-exists-p (concat (file-name-as-directory (cdr (assoc package locations))) "COLCON_IGNORE")) remove (not remove))) (kvalist->keys locations)))
+         (package-to-ignore (completing-read (concat "Package(s) to " (when remove "un") "ignore: ") (append '("ALL") candidates) nil t nil nil)))
+    (if (string= package-to-ignore "ALL") (mapc (lambda (loc) (ros-ignore-package--ignore-one loc remove)) (kvalist->values locations) ) (ros-ignore-package--ignore-one (cdr (assoc package-to-ignore locations)) remove))))
+
+(defun ros-ignore-package--ignore-one (location &optional remove)
+  (let ((filename (concat (file-name-as-directory location) "COLCON_IGNORE")))
+    (if remove (when (file-exists-p filename) (delete-file filename nil)) (unless (file-exists-p filename) (make-empty-file filename)))))
+
 (defun ros-cache-clean ()
   (interactive)
   (setq ros-cache nil))
@@ -106,8 +124,8 @@
 (defun ros-shell-command-to-string (cmd &optional use-default-directory)
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
     (with-shell-interpreter
-     :path path
-     :form (s-trim (shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
+      :path path
+      :form (s-trim (shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -525,18 +543,20 @@
 
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
-_c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages
+_c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages     _i_: ignore
 _m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean Cache
 "
   ("c" ros-colcon-build-transient)
   ("t" ros-colcon-test-transient)
   ("w" ros-set-workspace)
   ("p" hydra-ros-packages/body)
+  ("i" hydra-ros-ignore/body)
   ("m" hydra-ros-messages/body)
   ("s" hydra-ros-srvs/body)
   ("a" hydra-ros-actions/body)
   ("x" ros-cache-clean)
   ("q" nil "quit" :color blue))
+
 
 (defhydra hydra-ros-packages (:color blue :hint nil :foreign-keys warn)
   "
@@ -584,7 +604,15 @@ _I_: Insert import statement for action type
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
+(defhydra hydra-ros-ignore (:color blue :hint nil :foreign-keys warn)
 
+  "
+_+_: Ignore a package type at point               _-_: Unignore an ignored package
+"
+  ("+" ros-ignore-package)
+  ("-" ros-unignore-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
 
 (provide 'ros)
 ;;; ros.el ends here
