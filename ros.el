@@ -99,6 +99,18 @@
   (let ((filename (concat (file-name-as-directory location) "COLCON_IGNORE")))
     (if remove (when (file-exists-p filename) (delete-file filename nil)) (unless (file-exists-p filename) (make-empty-file filename)))))
 
+
+(defun ros-clean-package (package)
+  (interactive (list (ros-completing-read-package)))
+  (when (y-or-n-p (format "Clean package %s?" package))
+    (mapc (lambda (subfolder) (delete-directory (concat (ros-current-tramp-prefix) (ros-current-workspace) "/" subfolder "/" package) t)) '("install" "build"))))
+
+(defun ros-clean-workspace ()
+  (interactive )
+  (let ((path (concat (ros-current-tramp-prefix) (ros-current-workspace))))
+    (when (y-or-n-p (format "Clean workspace %s?" path))
+      (mapc (lambda (subfolder) (delete-directory (concat path  "/" subfolder) t)) '("install" "build" "log")))))
+
 (defun ros-cache-clean ()
   (interactive)
   (setq ros-cache nil))
@@ -544,7 +556,7 @@
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
 _c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages     _i_: ignore
-_m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean Cache
+_m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean
 "
   ("c" ros-colcon-build-transient)
   ("t" ros-colcon-test-transient)
@@ -554,7 +566,7 @@ _m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean Cache
   ("m" hydra-ros-messages/body)
   ("s" hydra-ros-srvs/body)
   ("a" hydra-ros-actions/body)
-  ("x" ros-cache-clean)
+  ("x" hydra-ros-clean/body)
   ("q" nil "quit" :color blue))
 
 
@@ -611,6 +623,17 @@ _+_: Ignore a package type at point               _-_: Unignore an ignored packa
 "
   ("+" ros-ignore-package)
   ("-" ros-unignore-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-clean (:color blue :hint nil :foreign-keys warn)
+
+  "
+_w_: Clean workspace    _p_: Clean package    _c_: Clean cache
+"
+  ("w" ros-clean-workspace)
+  ("p" ros-clean-package)
+  ("c" ros-cache-clean)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
