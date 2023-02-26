@@ -111,6 +111,11 @@
     (when (y-or-n-p (format "Clean workspace %s?" path))
       (mapc (lambda (subfolder) (delete-directory (concat path  "/" subfolder) t)) '("install" "build" "log")))))
 
+(defun ros-clean-test-results (package)
+  (interactive (list (ros-completing-read-package t)))
+  (let ((delete-function (lambda (package) (delete-directory (concat (ros-current-tramp-prefix) (ros-current-workspace) "/build/" package "/test_results") t))))
+    (if (string= package "ALL") (mapc delete-function (ros-list-packages)) (apply delete-function (list package)))))
+
 (defun ros-cache-clean ()
   (interactive)
   (setq ros-cache nil))
@@ -168,10 +173,10 @@
     (setq ros-current-workspace (nth (cl-position (completing-read "Workspace: " descriptions nil t nil nil (when ros-current-workspace (ros-workspace-to-string ros-current-workspace))) descriptions :test #'equal)  ros-workspaces))))
 
 
-(defun ros-completing-read-package ()
+(defun ros-completing-read-package (&optional add-catch-all)
   (let ((packages (ros-list-packages))
         (current-package (ros-current-package)))
-    (completing-read "Package: " packages nil t nil nil (when (member current-package packages) current-package))))
+    (completing-read "Package: " (if add-catch-all (append '("ALL") packages) packages)  nil t nil nil (when (member current-package packages) current-package))))
 
 (defun ros-completing-read-package-path ()
   (let* ((locations (ros-list-package-locations))
@@ -629,11 +634,13 @@ _+_: Ignore a package type at point               _-_: Unignore an ignored packa
 (defhydra hydra-ros-clean (:color blue :hint nil :foreign-keys warn)
 
   "
-_w_: Clean workspace    _p_: Clean package    _c_: Clean cache
+_w_: Clean workspace    _p_: Clean package
+_c_: Clean cache        _t_: Test Results
 "
   ("w" ros-clean-workspace)
   ("p" ros-clean-package)
   ("c" ros-cache-clean)
+  ("t" ros-clean-test-results)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
