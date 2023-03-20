@@ -124,7 +124,7 @@
 (defun ros-source-command (workspace &optional use-to-build)
   (let ((extends (cdr (assoc "extends" workspace)))
         (ws-setup-bash (concat (file-name-as-directory (cdr (assoc "workspace" workspace))) "install/setup.bash")))
-    (concat (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") (unless use-to-build (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))))
+    (concat (if extends (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") "true") (unless use-to-build (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))))
 
 
 (cl-defun ros-dump-workspace (&key tramp-prefix workspace extends)
@@ -143,7 +143,7 @@
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
     (with-shell-interpreter
       :path path
-      :form (s-trim (shell-command-to-string (format "/bin/bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
+      :form (s-trim (shell-command-to-string (format "bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -390,7 +390,7 @@
          (compilation-buffer-name-function (lambda (m) (concat "*Compile " (ros-current-workspace) "*")))
          (default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace))))
     (ros-push-colcon-action-to-history action)
-    (compile (format "/bin/bash -c \"%s\"" (ros-load-colcon-action action)))
+    (compile (format "bash -c \"%s\"" (ros-load-colcon-action action)))
     (other-window -1)))
 
 
