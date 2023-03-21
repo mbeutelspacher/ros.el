@@ -28,6 +28,7 @@
 
 ;;; Code:
 (require 'ros)
+(require 'buttercup)
 
 (describe "ROS 1 Tests"
   :var (docker-name)
