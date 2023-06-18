@@ -8,7 +8,7 @@
 ;; Version: 1.0.0
 ;; Keywords: convenience tools
 ;; Homepage: https://github.com/DerBeutlin/ros.el
-;; Package-Requires: ((emacs "27.1"))
+;; Package-Requires: ((emacs "27.1") s with-shell-interpreter kv cl-lib transient hydra grep string-inflection docker-tramp)
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -55,6 +55,20 @@
 
 (defvar ros-workspaces nil)
 
+(defvar ros-master-uri "http://localhost:11311")
+
+(defvar ros-ip "")
+
+(defvar ros-network-settings '(("http://localhost:11311"  "")))
+
+(defun ros-set-network-setting ()
+  (interactive)
+  (let* ((descriptions (mapcar  (lambda (element) (format "%s | %s" (cl-first element) (cl-second element))) ros-network-settings))
+         (selected (completing-read "ROS Network Settings" descriptions nil t nil nil (format "%s | %s" ros-master-uri ros-ip)))
+         (selection (nth (cl-position selected descriptions :test #'equal) ros-network-settings)))
+    (setq ros-master-uri (cl-first selection))
+    (setq ros-ip (cl-second selection))))
+
 (defun ros-current-tramp-prefix ()
   (cdr (assoc "tramp-prefix" ros-current-workspace)))
 
@@ -66,6 +80,9 @@
 
 (defun ros-current-source-command ()
   (ros-source-command ros-current-workspace))
+
+(defun ros-current-network-command ()
+  (format "export ROS_MASTER_URI=%s && export ROS_IP=%s" ros-master-uri ros-ip))
 
 (defvar ros-cache nil)
 
@@ -143,7 +160,7 @@
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
     (with-shell-interpreter
       :path path
-      :form (s-trim (shell-command-to-string (format "bash  -c \"%s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) cmd))))))
+      :form (s-trim (shell-command-to-string (format "bash  -c \"%s && %s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) (ros-current-network-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -218,6 +235,18 @@
 (defun ros-list-messages ()
   (ros-cache-load "messages" (lambda nil (if (eq (ros-current-version) 1) (ros-list-messages-ros1) (ros-list-messages-ros2)))))
 
+(defun ros-generic-cmd (type)
+(if (eq (ros-current-version) 1) (format "ros%s" type) (format "ros2 %s" type)))
+
+(defun ros-generic-list (type)
+  (ros-shell-command-to-list  (format "%s list" (ros-generic-cmd type))))
+
+(defun ros-generic-type (type name)
+  (ros-shell-command-to-string (format "%s type %s" (ros-generic-cmd type) name)))
+
+(defun ros-generic-completing-read (type)
+  (completing-read (format "%s: " type) (ros-generic-list type) nil t))
+
 (defun ros-list-messages-ros1 ()
   (ros-shell-command-to-list "rosmsg list"))
 
@@ -242,7 +271,7 @@
         (avy--line nil (point-min) (point-max)))
        ((require 'consult nil nil)
         (marker-position (consult-line)))
-       (t (user-error "You need to install `avy' or `consult' to use this feature."))))))
+       (t (user-error "You need to install `avy' or `consult' to use this feature"))))))
 
 (defun ros-insert-message (msg)
   (interactive (list (ros-completing-read-message)))
@@ -346,28 +375,131 @@
 
 (defun ros-show-message-info (msg)
   (interactive (list (ros-completing-read-message)))
-  (ros-interface-show-info "msg" msg))
+  (ros-interface-show-info "msg" msg)
+  (ros-msg-info-mode))
 
 (defun ros-show-srv-info (srv)
   (interactive (list (ros-completing-read-srv)))
-  (ros-interface-show-info "srv" srv))
+  (ros-interface-show-info "srv" srv)
+  (ros-srv-info-mode))
 
 (defun ros-show-action-info (action)
   (interactive (list (ros-completing-read-action)))
-  (ros-interface-show-info "action" action))
+  (ros-interface-show-info "action" action)
+  (ros-action-info-mode))
 
 (defun ros-interface-show-info (type name)
   (let ((buffer-name (format "* ros-%s: %s" type name)))
     (when (get-buffer buffer-name) (kill-buffer buffer-name))
-    (pop-to-buffer buffer-name))
+    (switch-to-buffer buffer-name))
   (erase-buffer)
-  (insert (ros-interface-info type name))
-  (messages-buffer-mode))
+  (insert (ros-interface-info type name)))
+
+(defun ros-show-message-info-at-point ()
+  (interactive)
+  (ros-show-message-info (thing-at-point 'symbol)))
+
+(define-minor-mode ros-msg-info-mode  "Mode to display information about rosmsg."   :lighter "rosmsg show" :keymap '(([return] . ros-show-message-info-at-point)))
+(define-minor-mode ros-srv-info-mode  "Mode to display information about rossrv."  :lighter "rossrv show" :keymap '(([return] . ros-show-message-info-at-point)))
+(define-minor-mode ros-action-info-mode  "Mode to display information about ros action."  :lighter "rosaction show" :keymap '(([return] . ros-show-message-info-at-point)))
 
 (defun ros-interface-info (type name)
-  (if (= (ros-current-version) 1) (ros-shell-command-to-string (format "ros%s show %s" type name))
+  (if (= (ros-current-version) 1) (ros-shell-command-to-string (format "ros%s show %s" type  name))
     (ros-shell-command-to-string (format "ros2 interface show %s" name))))
 
+(defun ros-topic-list ()
+  (ros-generic-list "topic"))
+
+(defun ros-topic-type (topic)
+  (ros-generic-type "topic" topic))
+
+(defun ros-topic-echo (topic)
+  (interactive (list (ros-generic-completing-read "topic")))
+  (let ((cmd (format "rostopic echo %s" topic)))
+    (start-process-shell-command cmd cmd
+                                 (format "/bin/bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
+    (switch-to-buffer cmd)))
+
+(defun ros-generic-info (type name &optional flags)
+  (let* ((buffer-name (format "* %s: %s" (ros-generic-cmd type) name))
+        (flag (if (and (string= type "topic") (eq (ros-current-version) 2)) " -v " ""))
+        (output (ros-shell-command-to-string (format "%s info %s %s" (ros-generic-cmd type) flag name))))
+    (when (get-buffer buffer-name) (kill-buffer buffer-name))
+    (switch-to-buffer buffer-name)
+    (erase-buffer)
+    (insert output)))
+
+(defun ros-topic-info (topic)
+  (interactive (list (ros-generic-completing-read "topic")))
+  (ros-generic-info "topic" topic)
+  (ros-topic-info-mode))
+
+
+(defun ros-topic-mode-info-thing-at-point ()
+  (interactive)
+  (let ((line (thing-at-point 'line))
+        (symbol (thing-at-point 'symbol)))
+    (cond ((or (s-starts-with-p "Topic type:" line) (s-starts-with-p "Type: " line)) (ros-show-message-info symbol))
+          (t (ros-node-info (if (s-starts-with-p "/" symbol) symbol (concat "/" symbol)) )))))
+
+(define-minor-mode ros-topic-info-mode  "Mode to display information about rostopics."  :lighter "rostopic info" :keymap '(([return] . ros-topic-mode-info-thing-at-point )))
+
+(defun ros-node-list ()
+  (ros-generic-list "node"))
+
+(defun ros-node-info (node)
+  (interactive (list (ros-generic-completing-read "node")))
+  (ros-generic-info "node" node)
+  (ros-node-info-mode))
+
+(defun ros-node-kill (node)
+  (interactive (list (ros-generic-completing-read "node")))
+  (if (eq (ros-current-version) 2) (error "ros node kill is not supported on ROS2") (ros-shell-command-to-string (format "rosnode kill %s" node))))
+
+(define-minor-mode ros-node-info-mode  "Mode to display information about rosnodes." :lighter  "rosnode info" :keymap '(([return] . ros-node-mode-info-thing-at-point)))
+
+(defun ros-service-list ()
+  (ros-generic-list "service"))
+
+(defun ros-service-type (service)
+  (ros-generic-type "service" service))
+
+(defun ros-service-info (service)
+  (interactive (list (ros-generic-completing-read "service")))
+  (ros-generic-info "service" service)
+  (ros-service-info-mode))
+
+(defun ros-service-mode-info-thing-at-point ()
+  (interactive)
+  (let ((line (thing-at-point 'line))
+        (symbol (thing-at-point 'symbol)))
+    (cond ((s-starts-with-p "Type: " line) (ros-show-srv-info symbol))
+          (t (ros-node-info (if (s-starts-with-p "/" symbol) symbol (concat "/" symbol)) )))))
+
+(define-minor-mode ros-service-info-mode  "Mode to display information about rosservices."  :lighter "rosnode info" :keymap '(([return] . ros-service-mode-info-thing-at-point)))
+
+(defun ros-node-mode-info-thing-at-point ()
+  (interactive)
+  (if (eq (ros-current-version )2) (ros-node-mode-info-thing-at-point-ros2) (ros-node-mode-info-thing-at-point-ros1)))
+
+(defun ros-node-mode-info-thing-at-point-ros2 ()
+  (let* ((end-of-line (save-excursion  (end-of-line) (point)))
+         (before-p (save-excursion (search-forward ":" end-of-line t)))
+         (symbol (thing-at-point 'symbol)))
+    (cond
+     ((save-excursion (search-backward "Service Servers:" nil t)) (message "Describe Services is not implemented"))
+     ((save-excursion (search-backward "Publishers:" nil t)) (if before-p (ros-topic-info symbol) (ros-show-message-info symbol)))
+     ((save-excursion (search-backward "Subscribers:" nil t)) (if before-p (ros-topic-info symbol) (ros-show-message-info symbol))))))
+
+(defun ros-node-mode-info-thing-at-point-ros1 ()
+  (let* ((line (thing-at-point 'line))
+         (surrounded-p (let ((ppss (syntax-ppss))) (when (nth 1 ppss) (char-after (nth 1 ppss)))))
+         (symbol (thing-at-point 'symbol)))
+    (cond
+     ((s-starts-with-p "Node" line) (ros-node-info symbol))
+     ((save-excursion (search-backward "Connections:" nil t)) (if (s-starts-with-p " * topic:" line) (ros-topic-info symbol) (ros-node-info symbol)))
+     ((save-excursion (search-backward "Services:" nil t)) (ros-service-info symbol))
+     (t (if surrounded-p (ros-show-message-info symbol) (ros-topic-info symbol))))))
 
 (cl-defun ros-dump-colcon-action (&key workspace verb flags post-cmd)
   (list (cons "workspace" workspace)
@@ -563,12 +695,11 @@
    ("P" "Test a package" ros-colcon-test-package)
    ("w" "Test current workspace" ros-colcon-test-workspace)])
 
-
-
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
 _c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages     _i_: ignore
 _m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean
+_T_: Topic     _N_: Node   _S_: Service        _M_: ROS-Master
 "
   ("c" ros-colcon-build-transient)
   ("t" ros-colcon-test-transient)
@@ -579,6 +710,11 @@ _m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean
   ("s" hydra-ros-srvs/body)
   ("a" hydra-ros-actions/body)
   ("x" hydra-ros-clean/body)
+  ("T" hydra-ros-topic/body)
+  ("N" hydra-ros-node/body)
+  ("S" hydra-ros-service/body)
+  ("M" ros-set-network-setting)
+
   ("q" nil "quit" :color blue))
 
 
@@ -648,6 +784,32 @@ _c_: Clean cache        _t_: Test Results
   ("p" ros-clean-package)
   ("c" ros-cache-clean)
   ("t" ros-clean-test-results)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-topic (:color blue :hint nil :foreign-keys warn)
+  "
+_i_: rostopic info   _e_: rostopic echo
+"
+  ("i" ros-topic-info)
+  ("e" ros-topic-echo)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-node (:color blue :hint nil :foreign-keys warn)
+  "
+_i_: rosnode info  _k_: rosnode kill
+"
+  ("i" ros-node-info)
+  ("k" ros-node-kill)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-service (:color blue :hint nil :foreign-keys warn)
+  "
+_i_: rosservice info
+"
+  ("i" ros-service-info)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 

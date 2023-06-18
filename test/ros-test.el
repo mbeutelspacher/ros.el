@@ -28,12 +28,14 @@
 
 ;;; Code:
 (require 'ros)
+(require 'buttercup)
 
 (describe "ROS 1 Tests"
   :var (docker-name)
   (before-all
     (progn (shell-command "docker build . -t ros-el-noetic -f docker/Dockerfile_noetic")
-           (setq docker-name (substring (s-trim(shell-command-to-string "docker run -it -d --name ros-el-noetic ros-el-noetic"))0 12))))
+           (setq docker-name (substring (s-trim(shell-command-to-string "docker run -it -d --name ros-el-noetic ros-el-noetic"))0 12))
+           (async-shell-command "docker exec -it ros-el-noetic bash -c 'sleep 1 && source /opt/ros/noetic/setup.bash && roscore'")))
   (before-each  (progn (setq ros-workspaces (list (ros-dump-workspace :tramp-prefix (format "/docker:root@%s:" docker-name) :workspace "/ws" :extends '("/opt/ros/noetic/")) (ros-dump-workspace :tramp-prefix "" :workspace "/ws" :extends '("/opt/ros/noetic/")))) (setq ros-cache nil)) (setq ros-current-workspace (car ros-workspaces)))
   (after-all
     (shell-command "docker stop ros-el-noetic && docker rm ros-el-noetic"))
@@ -125,6 +127,18 @@
         (c++-mode)
         (ros-insert-srv-import "std_srvs/Trigger" (point))
         (expect (s-trim (buffer-string)) :to-equal "#include <std_srvs/Trigger.h>"))))
+  (describe "Work with rostopic, rosnode and rosservice"
+    (it "Can list topics"
+      (expect (ros-topic-list) :to-equal '("/rosout" "/rosout_agg")))
+    (it "Can get type of topic"
+      (expect (ros-topic-type "/rosout") :to-equal "rosgraph_msgs/Log"))
+    (it "Can list nodes"
+      (expect (ros-node-list) :to-equal '("/rosout")))
+    (it "Can list services"
+      (expect (ros-service-list) :to-equal '("/rosout/get_loggers" "/rosout/set_logger_level")))
+    (it "Can get type of service"
+      (expect (ros-service-type "/rosout/get_loggers") :to-equal "roscpp/GetLoggers"))
+    )
 
   (describe "Cache"
     (it "Can Store And Retrieve in the cache"
@@ -164,7 +178,12 @@
     (it  "Detect current package"
       (let ((default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace) "/src/navigation2_tutorials/sam_bot_description")))
         (expect (ros-current-package) :to-equal "sam_bot_description"))))
-
+(describe "Work with rostopic, rosnode and rosservice"
+    (it "Can list topics"
+      (expect (ros-topic-list) :to-equal '("/parameter_events" "/rosout")))
+    (it "Can get type of topic"
+      (expect (ros-topic-type "/rosout") :to-equal "rcl_interfaces/msg/Log"))
+    )
 
 
   (describe "Work with messages and srvs"
