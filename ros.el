@@ -552,8 +552,12 @@
 (defun ros-current-package ()
   (let ((default-directory (locate-dominating-file default-directory "package.xml")))
     (when default-directory
-      (let ((current-package (ros-shell-command-to-string "colcon list -n" t)))
+      (let ((current-package (ros-parse-current-package)))
         (when (not (string= current-package "")) current-package)))))
+
+(defun ros-parse-current-package ()
+  (if (executable-find "colcon") (ros-shell-command-to-string "colcon list -n" t)
+    (when (executable-find "xmllint") (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml"))))
 
 (defun ros-colcon-build-and-test-current-package (&optional flags use-tcr)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
