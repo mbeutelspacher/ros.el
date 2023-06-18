@@ -557,7 +557,7 @@
 
 (defun ros-parse-current-package ()
   (if (executable-find "colcon") (ros-shell-command-to-string "colcon list -n" t)
-    (when (executable-find "xmllint") (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml"))))
+    (when (executable-find "xmllint") (string-trim (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml")))))
 
 (defun ros-colcon-build-and-test-current-package (&optional flags use-tcr)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
