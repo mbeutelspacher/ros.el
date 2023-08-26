@@ -598,6 +598,21 @@
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED")) )flags)))
     (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
+(defun ros-find-debug-executable ()
+  "Search for, then launch a ROS2 node in GDB mode."
+  (interactive)
+  (if (eq (ros-current-version) 1) (error "Debug does not currently support ros1")
+  (let* ((lib-path (ros-shell-command-to-string "env | grep LD_LIBRARY_PATH"))
+         (package (completing-read "Package: " (ros-list-packages) nil t))
+         (executables (split-string (ros-shell-command-to-string (format "ros2 pkg executables %s" package))))
+         (filtered-executables (seq-filter (lambda (exe) (not (string-prefix-p package exe))) executables))
+         (executable (completing-read "Executable: " filtered-executables nil t))
+         (prefix (ros-shell-command-to-string (format "ros2 pkg prefix %s" package)))
+         (gdb-command (if (ros-current-tramp-prefix)
+                          (format "gdb -i=mi %s%s/lib/%s/%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) prefix package executable lib-path)
+                        (format "gdb -i=mi %s/lib/%s/%s --eval-command \"set env %s\"" prefix package executable lib-path))))
+    (gdb gdb-command))))
+
 (defvar ros-additional-cmake-args nil)
 
 (defun ros-merge-cmake-args-commands (flags)
@@ -701,14 +716,15 @@
 
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
-_c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages     _i_: ignore
-_m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean
-_T_: Topic     _N_: Node   _S_: Service        _M_: ROS-Master
+_c_: Compile   _t_: Test      _d_: Debug          _w_: Set Workspace  _p_: packages
+_i_: ignore    _m_: Messages  _s_: Srvs           _a_: Actions        _x_: Clean
+_T_: Topic     _N_: Node      _S_: Service        _M_: ROS-Master
 "
   ("c" ros-colcon-build-transient)
   ("t" ros-colcon-test-transient)
   ("w" ros-set-workspace)
   ("p" hydra-ros-packages/body)
+  ("d" hydra-ros-debug/body)
   ("i" hydra-ros-ignore/body)
   ("m" hydra-ros-messages/body)
   ("s" hydra-ros-srvs/body)
@@ -732,6 +748,14 @@ _s_:  Search in current package  _S_: Search in a package
   ("f" ros-find-file-in-current-package)
   ("s" ros-grep-in-current-package)
   ("S" ros-grep-in-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-debug (:color blue :hint nil :foreign-keys warn)
+  "
+ _f_: Find executable in workspace to debug
+"
+  ("f" ros-find-debug-executable)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
