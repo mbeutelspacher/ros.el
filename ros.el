@@ -598,11 +598,11 @@
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED")) )flags)))
     (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
-(defun ros-find-debug-executable ()
+(defun ros-2-find-debug-executable ()
   "Search for, then launch a ROS2 node in GDB mode."
   (interactive)
-  (if (eq (ros-current-version) 1) (error "Debug does not currently support ros1")
-  (let* ((lib-path (ros-shell-command-to-string "env | grep LD_LIBRARY_PATH"))
+  (let* ((lib-path-orig (ros-shell-command-to-string (concat "env | grep " (nth 3 (split-string (car (ros-current-extensions)) "/")))))
+         (lib-path (replace-regexp-in-string "\n" "\" --eval-command \"set env " lib-path-orig))
          (package (completing-read "Package: " (ros-list-packages) nil t))
          (executables (split-string (ros-shell-command-to-string (format "ros2 pkg executables %s" package))))
          (filtered-executables (seq-filter (lambda (exe) (not (string-prefix-p package exe))) executables))
@@ -611,7 +611,29 @@
          (gdb-command (if (ros-current-tramp-prefix)
                           (format "gdb -i=mi %s%s/lib/%s/%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) prefix package executable lib-path)
                         (format "gdb -i=mi %s/lib/%s/%s --eval-command \"set env %s\"" prefix package executable lib-path))))
-    (gdb gdb-command))))
+    (gdb gdb-command)))
+
+
+(defun ros-1-find-debug-executable ()
+  "Search for, then launch a ROS1 node in GDB mode."
+  (interactive)
+  (let* ((lib-path-orig (ros-shell-command-to-string (concat "env | grep " (nth 3 (split-string (car (ros-current-extensions)) "/")))))
+         (lib-path (replace-regexp-in-string "\n" "\" --eval-command \"set env " lib-path-orig))
+         (package (completing-read "Package: " (ros-list-packages) nil t))
+         (nodes (split-string (ros-shell-command-to-string (format "find %s -type f -executable" (concat (ros-current-workspace) "build/" package "/devel/lib/" package)))))
+         (nodelets (split-string (ros-shell-command-to-string (format "rosrun nodelet declared_nodelets | grep %s" package))) )
+         (executables (append nodelets nodes))
+         (executable (completing-read "Executable: " executables nil t))
+         (gdb-prefix (if (member executable nodes)
+                         executable (concat (car (ros-current-extensions)) "lib/nodelet/nodelet --eval-command \" set args standalone " executable "\"")))
+         (gdb-command (if (ros-current-tramp-prefix)
+                          (format "gdb -i=mi %s%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) gdb-prefix lib-path)
+                        (format "gdb -i=mi %s --eval-command \"set env %s\"" gdb-prefix lib-path))))
+    (gdb gdb-command)))
+
+(defun ros-find-debug-executable ()
+  (interactive)
+  (if (eq (ros-current-version) 1) (ros-1-find-debug-executable)(ros-2-find-debug-executable)))
 
 (defvar ros-additional-cmake-args nil)
 
