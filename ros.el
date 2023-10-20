@@ -179,7 +179,12 @@
               (mapcar (lambda (path)
                         (directory-file-name (file-name-directory path)))
                       (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
-    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (ros-shell-command-to-list (format "cd %s && colcon list" (ros-current-workspace))))))))))
+    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil))))))))
+
+(defvar ros-list-package-locations-func 'ros-colcon-list)
+
+(defun ros-colcon-list ()
+  (ros-shell-command-to-list (format "cd %s && colcon list" (ros-current-workspace))))
 
 (defun ros-package-files (package-name)
   (ros-cache-load (concat "package" "_" package-name)
