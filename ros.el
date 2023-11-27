@@ -675,6 +675,8 @@
    ("-C" "Use CCache" "--cmake-args \"-DCMAKE_C_COMPILER_LAUNCHER=ccache\" \"-DCMAKE_CXX_COMPILER_LAUNCHER=ccache\"")
    ("-fc" "force CMake configure step" "--cmake-force-configure")
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
+   ("-m" "Merge packages for install" "--merge-install")
+   ("-d" "Use console direct for output" "--event-handlers console_direct+")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
    (ros-colcon-build-transient:--parallel-workers)]
