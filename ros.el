@@ -513,8 +513,8 @@
          (verb (cdr (assoc "verb" action)))
          (flags (cdr (assoc "flags" action)))
          (post-cmd (cdr (assoc "post-cmd" action))))
+    (concat source-command " && cd " (ros-current-workspace) " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
 
-    (concat source-command " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
 
 (defun ros-compile-action (action)
   (interactive (list (ros-completing-read-colcon-action-from-history)))
