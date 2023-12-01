@@ -141,7 +141,7 @@
 (defun ros-source-command (workspace &optional use-to-build)
   (let ((extends (cdr (assoc "extends" workspace)))
         (ws-setup-bash (concat (file-name-as-directory (cdr (assoc "workspace" workspace))) "install/setup.bash")))
-    (concat (if extends (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") "true") (unless use-to-build (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))))
+    (concat (if extends (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") "true") (unless use-to-build (format " && test -f %s && source %s 2> /dev/null|| true" ws-setup-bash ws-setup-bash)))))
 
 
 (cl-defun ros-dump-workspace (&key tramp-prefix workspace extends)
