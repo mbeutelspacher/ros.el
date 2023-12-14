@@ -172,14 +172,18 @@
   (let ((components (split-string line)))
     (list (car components) (concat (file-name-as-directory  (ros-current-workspace)) (cl-second components)))))
 
+(defcustom ros-cache-packages t
+  "If t cache ros package locations, otherwise call `ros-list-package-locations-func' every time.")
+
 (defun ros-list-package-locations (&optional include-ignored)
-  (if include-ignored
-      (mapcar (lambda (path)
-                (cons (file-name-nondirectory path) path))
-              (mapcar (lambda (path)
-                        (directory-file-name (file-name-directory path)))
-                      (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
-    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil))))))))
+  (let ((generate (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil)))))))
+    (if include-ignored
+        (mapcar (lambda (path)
+                  (cons (file-name-nondirectory path) path))
+                (mapcar (lambda (path)
+                          (directory-file-name (file-name-directory path)))
+                        (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
+      (if ros-cache-packages (ros-cache-load "package-locations" generate) (apply generate nil)))))
 
 (defvar ros-list-package-locations-func 'ros-colcon-list)
 
