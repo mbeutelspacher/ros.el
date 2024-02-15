@@ -634,7 +634,8 @@
 (defun ros-merge-cmake-args-commands (flags)
   (let* ((is-cmake-args (lambda (f) (s-starts-with-p "--cmake-args" f)))
          (flags-without-cmake-args (cl-remove-if is-cmake-args flags))
-         (cmake-args-flags (seq-filter is-cmake-args flags)))
+         (replace-testing (lambda (input-str) (if (= 1 (ros-current-version)) (replace-regexp-in-string "-DBUILD_TESTING" "-DCATKIN_ENABLE_TESTING" input-str) input-str)))
+         (cmake-args-flags (mapcar replace-testing (seq-filter is-cmake-args flags))))
     (append flags-without-cmake-args '("--cmake-args") (mapcar (lambda (f) (string-trim-left f "--cmake-args")) cmake-args-flags) ros-additional-cmake-args)))
 
 (transient-define-infix ros-colcon-build-transient:--DCMAKE_BUILD_TYPE()
@@ -644,6 +645,16 @@
   :argument-format "--cmake-args -DCMAKE_BUILD_TYPE=%s"
   :argument-regexp "\\(--cmake-args -DCMAKE_BUILD_TYPE=\\(Release\\|Debug\\|RelWithDebInfo\\|MinSizeRel\\)\\)"
   :choices '("Release" "Debug" "RelWithDebInfo" "MinSizeRel"))
+
+
+(transient-define-infix ros-colcon-build-transient:--DBUILD_TESTING ()
+  :description "-DBUILD_TESTING"
+  :class 'transient-switches
+  :key "-T"
+  :argument-format "--cmake-args -DBUILD_TESTING=%s"
+  :argument-regexp "\\(--cmake-args -DBUILD_TESTING=\\(ON\\|OFF\\)\\)"
+  :choices '("ON" "OFF"))
+
 
 (transient-define-infix ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS()
   :description "-DCMAKE_EXPORT_COMPILE_COMMANDS"
@@ -671,6 +682,7 @@
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
+   (ros-colcon-build-transient:--DBUILD_TESTING)
    (ros-colcon-build-transient:--parallel-workers)]
 
   ["Actions"
