@@ -621,8 +621,10 @@
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
-        (is-isolated (member "ISOLATED" flags)))
-    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose" (when use-tcr (ros-get-tcr-command package))))))))
+        (is-isolated (member "ISOLATED" flags))
+        (post-cmd (when test (ros-load-colcon-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (list "--cmake-args" (if (eq (ros-current-version) 1) "-DCATKIN_ENABLE_TESTING=ON" "-DBUILD_TESTING=ON") "--packages-select" package) :post-cmd
+                                                                             (concat "colcon test-result --delete-yes && colcon test --packages-select " package " && colcon test-result --verbose" (when use-tcr (ros-get-tcr-command package))))))))
+    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd post-cmd))))
 
 (defun ros-colcon-build-workspace (&optional flags test)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
