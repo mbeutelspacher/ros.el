@@ -141,7 +141,7 @@
 (defun ros-source-command (workspace &optional use-to-build)
   (let ((extends (cdr (assoc "extends" workspace)))
         (ws-setup-bash (concat (file-name-as-directory (cdr (assoc "workspace" workspace))) "install/setup.bash")))
-    (concat (if extends (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") "true") (unless use-to-build (format " && test -f %s && source %s || true" ws-setup-bash ws-setup-bash)))))
+    (concat (if extends (string-join (mapcar (lambda (extension) (concat "source " (file-name-as-directory extension) "setup.bash")) extends) " && ") "true") (unless use-to-build (format " && test -f %s && source %s 2> /dev/null|| true" ws-setup-bash ws-setup-bash)))))
 
 
 (cl-defun ros-dump-workspace (&key tramp-prefix workspace extends)
@@ -179,7 +179,12 @@
               (mapcar (lambda (path)
                         (directory-file-name (file-name-directory path)))
                       (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
-    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (ros-shell-command-to-list (format "cd %s && colcon list" (ros-current-workspace))))))))))
+    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil))))))))
+
+(defvar ros-list-package-locations-func 'ros-colcon-list)
+
+(defun ros-colcon-list ()
+  (ros-shell-command-to-list (format "cd %s && colcon list" (ros-current-workspace))))
 
 (defun ros-package-files (package-name)
   (ros-cache-load (concat "package" "_" package-name)
@@ -191,10 +196,13 @@
                                                            nil
                                                            (lambda (subdir) (not (string-prefix-p "." (file-name-nondirectory subdir))))))))))
 
+(defun ros-completing-read-workspace (&optional default-workspace)
+  (let ((descriptions (mapcar 'ros-workspace-to-string ros-workspaces)))
+    (nth (cl-position (completing-read "Workspace: " descriptions nil t nil nil (if default-workspace (ros-workspace-to-string default-workspace) (when ros-current-workspace (ros-workspace-to-string ros-current-workspace)))) descriptions :test #'equal)  ros-workspaces)))
+
 (defun ros-set-workspace ()
   (interactive)
-  (let ((descriptions (mapcar 'ros-workspace-to-string ros-workspaces)))
-    (setq ros-current-workspace (nth (cl-position (completing-read "Workspace: " descriptions nil t nil nil (when ros-current-workspace (ros-workspace-to-string ros-current-workspace))) descriptions :test #'equal)  ros-workspaces))))
+  (setq ros-current-workspace (ros-completing-read-workspace)))
 
 
 (defun ros-completing-read-package (&optional add-catch-all)
@@ -236,7 +244,7 @@
   (ros-cache-load "messages" (lambda nil (if (eq (ros-current-version) 1) (ros-list-messages-ros1) (ros-list-messages-ros2)))))
 
 (defun ros-generic-cmd (type)
-(if (eq (ros-current-version) 1) (format "ros%s" type) (format "ros2 %s" type)))
+  (if (eq (ros-current-version) 1) (format "ros%s" type) (format "ros2 %s" type)))
 
 (defun ros-generic-list (type)
   (ros-shell-command-to-list  (format "%s list" (ros-generic-cmd type))))
@@ -415,15 +423,16 @@
 
 (defun ros-topic-echo (topic)
   (interactive (list (ros-generic-completing-read "topic")))
-  (let ((cmd (format "rostopic echo %s" topic)))
-    (start-process-shell-command cmd cmd
-                                 (format "/bin/bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
+  (let ((cmd (format "%s echo %s" (ros-generic-cmd "topic") topic))
+        (default-directory (concat (ros-current-tramp-prefix ) (ros-current-workspace))))
+    (start-file-process-shell-command cmd cmd
+                                 (format "bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
     (switch-to-buffer cmd)))
 
 (defun ros-generic-info (type name &optional flags)
   (let* ((buffer-name (format "* %s: %s" (ros-generic-cmd type) name))
-        (flag (if (and (string= type "topic") (eq (ros-current-version) 2)) " -v " ""))
-        (output (ros-shell-command-to-string (format "%s info %s %s" (ros-generic-cmd type) flag name))))
+         (flag (if (and (string= type "topic") (eq (ros-current-version) 2)) " -v " ""))
+         (output (ros-shell-command-to-string (format "%s info %s %s" (ros-generic-cmd type) flag name))))
     (when (get-buffer buffer-name) (kill-buffer buffer-name))
     (switch-to-buffer buffer-name)
     (erase-buffer)
@@ -440,7 +449,7 @@
   (let ((line (thing-at-point 'line))
         (symbol (thing-at-point 'symbol)))
     (cond ((or (s-starts-with-p "Topic type:" line) (s-starts-with-p "Type: " line)) (ros-show-message-info symbol))
-          (t (ros-node-info (if (s-starts-with-p "/" symbol) symbol (concat "/" symbol)) )))))
+          (t (ros-node-info (if (s-starts-with-p "/" symbol) symbol (concat "/" symbol)))))))
 
 (define-minor-mode ros-topic-info-mode  "Mode to display information about rostopics."  :lighter "rostopic info" :keymap '(([return] . ros-topic-mode-info-thing-at-point )))
 
@@ -513,8 +522,28 @@
          (verb (cdr (assoc "verb" action)))
          (flags (cdr (assoc "flags" action)))
          (post-cmd (cdr (assoc "post-cmd" action))))
-
     (concat source-command " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
+
+(defun ros-edit-colcon-action (action)
+  (interactive (list (ros-completing-read-colcon-action-from-history)))
+  (let* ((section (completing-read "Which section to edit: " (kvalist->keys action) nil t))
+         (new-value
+          (cond
+           ((string-equal section "workspace") (ros-completing-read-workspace (cdr (assoc "workspace" action))))
+           ((string-equal section "verb") (completing-read "Verb: " '("build" "test") nil t nil nil (cdr (assoc "verb" action))))
+           ((string-equal section "flags") (ros-edit-colcon-flags (cdr (assoc "flags" action))))
+           ((string-equal section "post-cmd") (read-string "Edit: " (cdr (assoc "post-cmd" action))))
+           (t (error "Invalid choice"))))
+         (new-action (mapcar (lambda (pair) (if (equal (car pair) section) (cons section new-value) pair)) action)))
+    (setq ros-colcon-action-history (remove action ros-colcon-action-history))
+    (if (y-or-n-p "Do you want to run the updated compile command: ") (ros-compile-action new-action) (ros-push-colcon-action-to-history new-action))))
+
+
+(defun ros-edit-colcon-flags (flags)
+  (let* ((candidate (completing-read "Flag to edit: " flags nil t))
+         (replacement (read-string "Edit: " candidate)))
+    (append (remove candidate flags) (list replacement))))
+
 
 (defun ros-compile-action (action)
   (interactive (list (ros-completing-read-colcon-action-from-history)))
@@ -557,7 +586,7 @@
 
 (defun ros-parse-current-package ()
   (if (executable-find "colcon") (ros-shell-command-to-string "colcon list -n" t)
-    (when (executable-find "xmllint") (string-trim (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml")))))
+    (when (executable-find "xmllint") (string-trim (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml 2> /dev/null")))))
 
 (defun ros-colcon-build-and-test-current-package (&optional flags use-tcr)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
