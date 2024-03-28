@@ -423,9 +423,10 @@
 
 (defun ros-topic-echo (topic)
   (interactive (list (ros-generic-completing-read "topic")))
-  (let ((cmd (format "rostopic echo %s" topic)))
-    (start-process-shell-command cmd cmd
-                                 (format "/bin/bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
+  (let ((cmd (format "%s echo %s" (ros-generic-cmd "topic") topic))
+        (default-directory (concat (ros-current-tramp-prefix ) (ros-current-workspace))))
+    (start-file-process-shell-command cmd cmd
+                                 (format "bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
     (switch-to-buffer cmd)))
 
 (defun ros-generic-info (type name &optional flags)
