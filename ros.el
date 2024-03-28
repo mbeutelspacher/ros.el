@@ -117,6 +117,11 @@
   (let ((filename (concat (file-name-as-directory location) "COLCON_IGNORE")))
     (if remove (when (file-exists-p filename) (delete-file filename nil)) (unless (file-exists-p filename) (make-empty-file filename)))))
 
+(defun ros-remove-every-second-item (lst)
+  "Helper function removes every second entry from list."
+  (if (null lst)
+      nil
+    (cons (car lst) (ros-remove-every-second-item (cddr lst)))))
 
 (defun ros-clean-package (package)
   (interactive (list (ros-completing-read-package)))
@@ -522,7 +527,7 @@
          (verb (cdr (assoc "verb" action)))
          (flags (cdr (assoc "flags" action)))
          (post-cmd (cdr (assoc "post-cmd" action))))
-    (concat source-command " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
+    (concat source-command " && cd " (ros-current-workspace) " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
 
 (defun ros-edit-colcon-action (action)
   (interactive (list (ros-completing-read-colcon-action-from-history)))
@@ -632,7 +637,9 @@
   (interactive)
   (let* ((lib-path-orig (ros-shell-command-to-string (concat "env | grep " (nth 3 (split-string (car (ros-current-extensions)) "/")))))
          (lib-path (replace-regexp-in-string "\n" "\" --eval-command \"set env " lib-path-orig))
-         (package (completing-read "Package: " (ros-list-packages) nil t))
+         (package-list (split-string (ros-shell-command-to-string "ros2 pkg executables")))
+         (trimmed-package-list (delete-dups (ros-remove-every-second-item package-list)))
+         (package (completing-read "Package: " trimmed-package-list nil t))
          (executables (split-string (ros-shell-command-to-string (format "ros2 pkg executables %s" package))))
          (filtered-executables (seq-filter (lambda (exe) (not (string-prefix-p package exe))) executables))
          (executable (completing-read "Executable: " filtered-executables nil t))
@@ -641,7 +648,6 @@
                           (format "gdb -i=mi %s%s/lib/%s/%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) prefix package executable lib-path)
                         (format "gdb -i=mi %s/lib/%s/%s --eval-command \"set env %s\"" prefix package executable lib-path))))
     (gdb gdb-command)))
-
 
 (defun ros-1-find-debug-executable ()
   "Search for, then launch a ROS1 node in GDB mode."
@@ -704,6 +710,8 @@
    ("-C" "Use CCache" "--cmake-args \"-DCMAKE_C_COMPILER_LAUNCHER=ccache\" \"-DCMAKE_CXX_COMPILER_LAUNCHER=ccache\"")
    ("-fc" "force CMake configure step" "--cmake-force-configure")
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
+   ("-m" "Merge packages for install" "--merge-install")
+   ("-d" "Use console direct for output" "--event-handlers console_direct+")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
    (ros-colcon-build-transient:--parallel-workers)]
