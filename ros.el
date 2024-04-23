@@ -61,6 +61,8 @@
 
 (defvar ros-network-settings '(("http://localhost:11311"  "")))
 
+(defvar ros-last-debug-action "")
+
 (defun ros-set-network-setting ()
   (interactive)
   (let* ((descriptions (mapcar  (lambda (element) (format "%s | %s" (cl-first element) (cl-second element))) ros-network-settings))
@@ -647,6 +649,7 @@
          (gdb-command (if (ros-current-tramp-prefix)
                           (format "gdb -i=mi %s%s/lib/%s/%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) prefix package executable lib-path)
                         (format "gdb -i=mi %s/lib/%s/%s --eval-command \"set env %s\"" prefix package executable lib-path))))
+    (setq ros-last-debug-action gdb-command)
     (gdb gdb-command)))
 
 (defun ros-1-find-debug-executable ()
@@ -664,11 +667,20 @@
          (gdb-command (if (ros-current-tramp-prefix)
                           (format "gdb -i=mi %s%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) gdb-prefix lib-path)
                         (format "gdb -i=mi %s --eval-command \"set env %s\"" gdb-prefix lib-path))))
+    (setq ros-last-debug-action gdb-command)
     (gdb gdb-command)))
 
 (defun ros-find-debug-executable ()
+  "Select an executable to run through GDB."
   (interactive)
   (if (eq (ros-current-version) 1) (ros-1-find-debug-executable)(ros-2-find-debug-executable)))
+
+(defun ros-repeat-last-debug()
+  "If there has been a last debug action, repeat it."
+  (interactive)
+  (if (null ros-last-debug-action)
+      (ros-find-debug-executable)
+    (gdb ros-last-debug-action)))
 
 (defvar ros-additional-cmake-args nil)
 
@@ -812,9 +824,10 @@ _s_:  Search in current package  _S_: Search in a package
 
 (defhydra hydra-ros-debug (:color blue :hint nil :foreign-keys warn)
   "
- _f_: Find executable in workspace to debug
+ _f_: Find executable in workspace to debug _l_: Repeat last debug action
 "
   ("f" ros-find-debug-executable)
+  ("l" ros-repeat-last-debug)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
