@@ -643,7 +643,7 @@
          (trimmed-package-list (delete-dups (ros-remove-every-second-item package-list)))
          (package (completing-read "Package: " trimmed-package-list nil t))
          (executables (split-string (ros-shell-command-to-string (format "ros2 pkg executables %s" package))))
-         (filtered-executables (seq-filter (lambda (exe) (not (string-prefix-p package exe))) executables))
+         (filtered-executables (cl-remove-if-not #'(lambda (x) (not (zerop (% (cl-position x executables) 2)))) executables))
          (executable (completing-read "Executable: " filtered-executables nil t))
          (prefix (ros-shell-command-to-string (format "ros2 pkg prefix %s" package)))
          (gdb-command (if (ros-current-tramp-prefix)
