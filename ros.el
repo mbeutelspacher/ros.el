@@ -8,7 +8,7 @@
 ;; Version: 1.0.0
 ;; Keywords: convenience tools
 ;; Homepage: https://github.com/DerBeutlin/ros.el
-;; Package-Requires: ((emacs "27.1") s with-shell-interpreter kv cl-lib transient hydra grep string-inflection docker-tramp)
+;; Package-Requires: ((emacs "27.1") s with-shell-interpreter kv cl-lib transient hydra grep string-inflection)
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
