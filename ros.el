@@ -160,7 +160,7 @@
   (let ((path (if use-default-directory default-directory (concat (ros-current-tramp-prefix) "~"))))
     (with-shell-interpreter
       :path path
-      :form (s-trim (shell-command-to-string (format "bash  -c \"%s && %s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (ros-current-source-command) (ros-current-network-command) cmd))))))
+      :form (s-trim (shell-command-to-string (format "%s  -c \"%s && %s && %s\" | sed -r \"s/\x1B\\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g\"" (apply ros-shell-command-bash-func (list ros-current-workspace)) (ros-current-source-command) (ros-current-network-command) cmd))))))
 
 (defun ros-shell-command-to-list (cmd)
   (split-string (ros-shell-command-to-string cmd) "\n" t  "[\s\f\t\n\r\v\\]+"))
@@ -426,7 +426,7 @@
   (let ((cmd (format "%s echo %s" (ros-generic-cmd "topic") topic))
         (default-directory (concat (ros-current-tramp-prefix ) (ros-current-workspace))))
     (start-file-process-shell-command cmd cmd
-                                 (format "bash -c '%s && %s'" (ros-source-command ros-current-workspace) cmd))
+                                 (format "%s -c '%s && %s'" (apply ros-shell-command-bash-func (list ros-current-workspace)) (ros-source-command ros-current-workspace) cmd))
     (switch-to-buffer cmd)))
 
 (defun ros-generic-info (type name &optional flags)
@@ -544,6 +544,8 @@
          (replacement (read-string "Edit: " candidate)))
     (append (remove candidate flags) (list replacement))))
 
+(defvar ros-compile-bash-func (lambda (ws) "bash"))
+(defvar ros-shell-command-bash-func (lambda (ws) "bash"))
 
 (defun ros-compile-action (action)
   (interactive (list (ros-completing-read-colcon-action-from-history)))
@@ -551,7 +553,7 @@
          (compilation-buffer-name-function (lambda (m) (concat "*Compile " (ros-current-workspace) "*")))
          (default-directory (concat (ros-current-tramp-prefix) (ros-current-workspace))))
     (ros-push-colcon-action-to-history action)
-    (compile (format "bash -c \"%s\"" (ros-load-colcon-action action)))
+    (compile (format "%s -c \"%s\"" (apply ros-compile-bash-func (list ros-current-workspace)) (ros-load-colcon-action action)))
     (other-window -1)))
 
 
