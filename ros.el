@@ -8,7 +8,7 @@
 ;; Version: 1.0.0
 ;; Keywords: convenience tools
 ;; Homepage: https://github.com/DerBeutlin/ros.el
-;; Package-Requires: ((emacs "27.1") s with-shell-interpreter kv cl-lib transient hydra grep string-inflection docker-tramp)
+;; Package-Requires: ((emacs "27.1") s with-shell-interpreter kv cl-lib transient hydra grep string-inflection)
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -172,14 +172,18 @@
   (let ((components (split-string line)))
     (list (car components) (concat (file-name-as-directory  (ros-current-workspace)) (cl-second components)))))
 
+(defcustom ros-cache-packages t
+  "If t cache ros package locations, otherwise call `ros-list-package-locations-func' every time.")
+
 (defun ros-list-package-locations (&optional include-ignored)
-  (if include-ignored
-      (mapcar (lambda (path)
-                (cons (file-name-nondirectory path) path))
-              (mapcar (lambda (path)
-                        (directory-file-name (file-name-directory path)))
-                      (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
-    (ros-cache-load "package-locations" (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil))))))))
+  (let ((generate (lambda nil (kvplist->alist (apply #'append (mapcar 'ros-parse-colcon-list-line (apply ros-list-package-locations-func nil)))))))
+    (if include-ignored
+        (mapcar (lambda (path)
+                  (cons (file-name-nondirectory path) path))
+                (mapcar (lambda (path)
+                          (directory-file-name (file-name-directory path)))
+                        (mapcar (lambda (path) (concat (ros-current-tramp-prefix) path)) (ros-shell-command-to-list (format " find %s -iname \"package.xml\"" (concat (ros-current-workspace) "/src"))))))
+      (if ros-cache-packages (ros-cache-load "package-locations" generate) (apply generate nil)))))
 
 (defvar ros-list-package-locations-func 'ros-colcon-list)
 
@@ -621,8 +625,10 @@
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
-        (is-isolated (member "ISOLATED" flags)))
-    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose" (when use-tcr (ros-get-tcr-command package))))))))
+        (is-isolated (member "ISOLATED" flags))
+        (post-cmd (when test (ros-load-colcon-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (list "--cmake-args" (if (eq (ros-current-version) 1) "-DCATKIN_ENABLE_TESTING=ON" "-DBUILD_TESTING=ON") "--packages-select" package) :post-cmd
+                                                                             (concat "colcon test-result --delete-yes && colcon test --packages-select " package " && colcon test-result --verbose" (when use-tcr (ros-get-tcr-command package))))))))
+    (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd post-cmd))))
 
 (defun ros-colcon-build-workspace (&optional flags test)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
@@ -634,7 +640,8 @@
 (defun ros-merge-cmake-args-commands (flags)
   (let* ((is-cmake-args (lambda (f) (s-starts-with-p "--cmake-args" f)))
          (flags-without-cmake-args (cl-remove-if is-cmake-args flags))
-         (cmake-args-flags (seq-filter is-cmake-args flags)))
+         (replace-testing (lambda (input-str) (if (= 1 (ros-current-version)) (replace-regexp-in-string "-DBUILD_TESTING" "-DCATKIN_ENABLE_TESTING" input-str) input-str)))
+         (cmake-args-flags (mapcar replace-testing (seq-filter is-cmake-args flags))))
     (append flags-without-cmake-args '("--cmake-args") (mapcar (lambda (f) (string-trim-left f "--cmake-args")) cmake-args-flags) ros-additional-cmake-args)))
 
 (transient-define-infix ros-colcon-build-transient:--DCMAKE_BUILD_TYPE()
@@ -644,6 +651,16 @@
   :argument-format "--cmake-args -DCMAKE_BUILD_TYPE=%s"
   :argument-regexp "\\(--cmake-args -DCMAKE_BUILD_TYPE=\\(Release\\|Debug\\|RelWithDebInfo\\|MinSizeRel\\)\\)"
   :choices '("Release" "Debug" "RelWithDebInfo" "MinSizeRel"))
+
+
+(transient-define-infix ros-colcon-build-transient:--DBUILD_TESTING ()
+  :description "-DBUILD_TESTING"
+  :class 'transient-switches
+  :key "-T"
+  :argument-format "--cmake-args -DBUILD_TESTING=%s"
+  :argument-regexp "\\(--cmake-args -DBUILD_TESTING=\\(ON\\|OFF\\)\\)"
+  :choices '("ON" "OFF"))
+
 
 (transient-define-infix ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS()
   :description "-DCMAKE_EXPORT_COMPILE_COMMANDS"
@@ -671,6 +688,7 @@
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
+   (ros-colcon-build-transient:--DBUILD_TESTING)
    (ros-colcon-build-transient:--parallel-workers)]
 
   ["Actions"
