@@ -1,4 +1,8 @@
 [[https://melpa.org/#/ros][file:https://melpa.org/packages/ros-badge.svg]]
+
+* Juraph's personal fork of ROS.el
+Largest change is the addition of a "debug" flag, which allows the user to run a node through the emacs-gdb interface. works for both ros-2 and ros-1, supporting standalone executables and nodelets. There is a video of the addition [[https://juraph.com/miscellaneous/ros_emacs_debugging][on a blog post]] covering the process.
+
 * ros.el
 :PROPERTIES:
 :CREATED:  [2021-07-30 Fri 09:36]

@@ -61,6 +61,8 @@
 
 (defvar ros-network-settings '(("http://localhost:11311"  "")))
 
+(defvar ros-last-debug-action "")
+
 (defun ros-set-network-setting ()
   (interactive)
   (let* ((descriptions (mapcar  (lambda (element) (format "%s | %s" (cl-first element) (cl-second element))) ros-network-settings))
@@ -117,6 +119,11 @@
   (let ((filename (concat (file-name-as-directory location) "COLCON_IGNORE")))
     (if remove (when (file-exists-p filename) (delete-file filename nil)) (unless (file-exists-p filename) (make-empty-file filename)))))
 
+(defun ros-remove-every-second-item (lst)
+  "Helper function removes every second entry from list."
+  (if (null lst)
+      nil
+    (cons (car lst) (ros-remove-every-second-item (cddr lst)))))
 
 (defun ros-clean-package (package)
   (interactive (list (ros-completing-read-package)))
@@ -526,7 +533,7 @@
          (verb (cdr (assoc "verb" action)))
          (flags (cdr (assoc "flags" action)))
          (post-cmd (cdr (assoc "post-cmd" action))))
-    (concat source-command " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
+    (concat source-command " && cd " (ros-current-workspace) " && colcon " verb " " (when flags (string-join flags " ")) (when post-cmd (concat " && " post-cmd)))))
 
 (defun ros-edit-colcon-action (action)
   (interactive (list (ros-completing-read-colcon-action-from-history)))
@@ -635,6 +642,54 @@
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED")) )flags)))
     (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags real-flags :post-cmd (when test (concat "colcon test --packages-select " package " && colcon test-result --verbose"))))))
 
+(defun ros-2-find-debug-executable ()
+  "Search for, then launch a ROS2 node in GDB mode."
+  (interactive)
+  (let* ((lib-path-orig (ros-shell-command-to-string (concat "env | grep " (nth 3 (split-string (car (ros-current-extensions)) "/")))))
+         (lib-path (replace-regexp-in-string "\n" "\" --eval-command \"set env " lib-path-orig))
+         (package-list (split-string (ros-shell-command-to-string "ros2 pkg executables")))
+         (trimmed-package-list (delete-dups (ros-remove-every-second-item package-list)))
+         (package (completing-read "Package: " trimmed-package-list nil t))
+         (executables (split-string (ros-shell-command-to-string (format "ros2 pkg executables %s" package))))
+         (filtered-executables (cl-remove-if-not #'(lambda (x) (not (zerop (% (cl-position x executables) 2)))) executables))
+         (executable (completing-read "Executable: " filtered-executables nil t))
+         (prefix (ros-shell-command-to-string (format "ros2 pkg prefix %s" package)))
+         (gdb-command (if (ros-current-tramp-prefix)
+                          (format "gdb -i=mi %s%s/lib/%s/%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) prefix package executable lib-path)
+                        (format "gdb -i=mi %s/lib/%s/%s --eval-command \"set env %s\"" prefix package executable lib-path))))
+    (setq ros-last-debug-action gdb-command)
+    (gdb gdb-command)))
+
+(defun ros-1-find-debug-executable ()
+  "Search for, then launch a ROS1 node in GDB mode."
+  (interactive)
+  (let* ((lib-path-orig (ros-shell-command-to-string (concat "env | grep " (nth 3 (split-string (car (ros-current-extensions)) "/")))))
+         (lib-path (replace-regexp-in-string "\n" "\" --eval-command \"set env " lib-path-orig))
+         (package (completing-read "Package: " (ros-list-packages) nil t))
+         (nodes (split-string (ros-shell-command-to-string (format "find %s -type f -executable" (concat (ros-current-workspace) "build/" package "/devel/lib/" package)))))
+         (nodelets (split-string (ros-shell-command-to-string (format "rosrun nodelet declared_nodelets | grep %s" package))) )
+         (executables (append nodelets nodes))
+         (executable (completing-read "Executable: " executables nil t))
+         (gdb-prefix (if (member executable nodes)
+                         executable (concat (car (ros-current-extensions)) "lib/nodelet/nodelet --eval-command \" set args standalone " executable "\"")))
+         (gdb-command (if (ros-current-tramp-prefix)
+                          (format "gdb -i=mi %s%s --eval-command \"set env %s\"" (ros-current-tramp-prefix) gdb-prefix lib-path)
+                        (format "gdb -i=mi %s --eval-command \"set env %s\"" gdb-prefix lib-path))))
+    (setq ros-last-debug-action gdb-command)
+    (gdb gdb-command)))
+
+(defun ros-find-debug-executable ()
+  "Select an executable to run through GDB."
+  (interactive)
+  (if (eq (ros-current-version) 1) (ros-1-find-debug-executable)(ros-2-find-debug-executable)))
+
+(defun ros-repeat-last-debug()
+  "If there has been a last debug action, repeat it."
+  (interactive)
+  (if (null ros-last-debug-action)
+      (ros-find-debug-executable)
+    (gdb ros-last-debug-action)))
+
 (defvar ros-additional-cmake-args nil)
 
 (defun ros-merge-cmake-args-commands (flags)
@@ -686,6 +741,8 @@
    ("-C" "Use CCache" "--cmake-args \"-DCMAKE_C_COMPILER_LAUNCHER=ccache\" \"-DCMAKE_CXX_COMPILER_LAUNCHER=ccache\"")
    ("-fc" "force CMake configure step" "--cmake-force-configure")
    ("-s" "Use symlinks instead of copying files where possible" "--symlink-install")
+   ("-m" "Merge packages for install" "--merge-install")
+   ("-d" "Use console direct for output" "--event-handlers console_direct+")
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
    (ros-colcon-build-transient:--DBUILD_TESTING)
@@ -750,14 +807,15 @@
 
 (defhydra hydra-ros-main (:color blue :hint nil :foreign-keys warn)
   "
-_c_: Compile   _t_: Test   _w_: Set Workspace  _p_: packages     _i_: ignore
-_m_: Messages  _s_: Srvs   _a_: Actions        _x_: Clean
-_T_: Topic     _N_: Node   _S_: Service        _M_: ROS-Master
+_c_: Compile   _t_: Test      _d_: Debug          _w_: Set Workspace  _p_: packages
+_i_: ignore    _m_: Messages  _s_: Srvs           _a_: Actions        _x_: Clean
+_T_: Topic     _N_: Node      _S_: Service        _M_: ROS-Master
 "
   ("c" ros-colcon-build-transient)
   ("t" ros-colcon-test-transient)
   ("w" ros-set-workspace)
   ("p" hydra-ros-packages/body)
+  ("d" hydra-ros-debug/body)
   ("i" hydra-ros-ignore/body)
   ("m" hydra-ros-messages/body)
   ("s" hydra-ros-srvs/body)
@@ -781,6 +839,15 @@ _s_:  Search in current package  _S_: Search in a package
   ("f" ros-find-file-in-current-package)
   ("s" ros-grep-in-current-package)
   ("S" ros-grep-in-package)
+  ("q" nil "quit hydra")
+  ("^" hydra-ros-main/body "Go back"))
+
+(defhydra hydra-ros-debug (:color blue :hint nil :foreign-keys warn)
+  "
+ _f_: Find executable in workspace to debug _l_: Repeat last debug action
+"
+  ("f" ros-find-debug-executable)
+  ("l" ros-repeat-last-debug)
   ("q" nil "quit hydra")
   ("^" hydra-ros-main/body "Go back"))
 
