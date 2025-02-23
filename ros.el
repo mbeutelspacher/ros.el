@@ -663,6 +663,35 @@
   :argument "--parallel-workers "
   :reader 'transient-read-number-N+)
 
+(defun ros-completing-read-build-mixins (prompt initial-input history)
+  (ros-completing-read-mixins "build" prompt initial-input history))
+
+(defun ros-completing-read-test-mixins (prompt initial-input history)
+  (ros-completing-read-mixins "test" prompt initial-input history))
+
+(defun ros-completing-read-mixins (verb prompt initial-input history)
+  "Read multiple mixins and return them as a space seperated string."
+  (let ((mixins  (completing-read-multiple prompt (ros-get-colcon-mixins verb) nil t initial-input history)))
+    (when mixins (string-join mixins " "))))
+
+(defun ros-get-colcon-mixins (verb)
+  "Run `colcon mixin show VERB` and extracts the mixin names."
+  (let* ((lines (ros-shell-command-to-list (format  "colcon --log-base /dev/null mixin show %s" verb)))
+         (mixin-names (seq-filter (lambda (line)
+                                   (not (string-empty-p line))
+                                   (s-starts-with-p "- " line))
+                                 lines)))
+    (mapcar (lambda (s) (string-remove-prefix "- " s)) mixin-names)))
+
+
+(transient-define-argument ros-colcon-build-transient:--mixins ()
+  :description "The mixins to use"
+  :class 'transient-option
+  :shortarg "-m"
+  :argument "--mixin "
+  :reader 'ros-completing-read-build-mixins
+  )
+
 (transient-define-prefix ros-colcon-build-transient ()
   "Transient command for catkin build."
   ["Arguments"
@@ -675,7 +704,9 @@
    (ros-colcon-build-transient:--DCMAKE_BUILD_TYPE)
    (ros-colcon-build-transient:--DCMAKE_EXPORT_COMPILE_COMMANDS)
    (ros-colcon-build-transient:--DBUILD_TESTING)
-   (ros-colcon-build-transient:--parallel-workers)]
+   (ros-colcon-build-transient:--parallel-workers)
+   (ros-colcon-build-transient:--mixins)
+   ]
 
   ["Actions"
    ("p" "Build current package" ros-colcon-build-current-package)
@@ -716,13 +747,23 @@
   :argument "--retest-until-pass "
   :reader 'transient-read-number-N+)
 
+(transient-define-argument ros-colcon-test-transient:--mixins ()
+  :description "The mixins to use"
+  :class 'transient-option
+  :shortarg "-m"
+  :argument "--mixin "
+  :reader 'ros-completing-read-test-mixins
+  )
+
 (transient-define-prefix ros-colcon-test-transient ()
   "Transient command for catkin build."
   ["Arguments"
    ("-a" "abort on error" "--abort-on-error")
    (ros-colcon-build-transient:--parallel-workers)
    (ros-colcon-test-transient:--retest-until-fail)
-   (ros-colcon-test-transient:--retest-until-pass)]
+   (ros-colcon-test-transient:--retest-until-pass)
+   (ros-colcon-test-transient:--mixins)
+   ]
 
   ["Actions"
    ("p" "Test current package" ros-colcon-test-current-package)
