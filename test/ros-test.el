@@ -1,4 +1,6 @@
+;;; -*- lexical-binding: t; -*-
 ;;; ros-test.el --- Tests for ros.el
+
 
 ;; Copyright (C) 2013 Max Beutelspacher
 
@@ -41,7 +43,7 @@
     (shell-command "docker stop ros-el-noetic && docker rm ros-el-noetic"))
   (describe "Correct source command"
     (it "returns the correct source command"
-      (expect (ros-current-source-command) :to-equal "source /opt/ros/noetic/setup.bash && test -f /ws/install/setup.bash && source /ws/install/setup.bash || true")))
+      (expect (ros-current-source-command) :to-equal "source /opt/ros/noetic/setup.bash && test -f /ws/install/setup.bash && source /ws/install/setup.bash 2> /dev/null|| true")))
   (describe "Run Shell commands"
     (it "on local machine"
       (let ((ros-current-workspace (cl-second ros-workspaces)))
