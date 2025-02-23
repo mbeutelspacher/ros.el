@@ -594,40 +594,26 @@
   (if (executable-find "colcon") (ros-shell-command-to-string "colcon list -n" t)
     (when (executable-find "xmllint") (string-trim (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml 2> /dev/null")))))
 
-(defun ros-colcon-build-and-test-current-package (&optional flags use-tcr)
+(defun ros-colcon-build-and-test-current-package (&optional flags)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
-  (ros-colcon-build-current-package flags t use-tcr))
+  (ros-colcon-build-current-package flags t))
 
-(defun ros-colcon-build-and-test-current-package-with-tcr (&optional flags)
-  (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-  (ros-colcon-build-and-test-current-package flags t))
-
-(defun ros-colcon-build-current-package (&optional flags test use-tcr)
+(defun ros-colcon-build-current-package (&optional flags test)
   (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (let ((current-package (ros-current-package)))
-    (ros-colcon-build-package (if current-package current-package (ros-completing-read-package)) flags test use-tcr)))
+    (ros-colcon-build-package (if current-package current-package (ros-completing-read-package)) flags test)))
 
-(defun ros-colcon-build-and-test-package (package &optional flags use-tcr)
+(defun ros-colcon-build-and-test-package (package &optional flags)
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-  (ros-colcon-build-package package flags t use-tcr))
+  (ros-colcon-build-package package flags t))
 
-(defun ros-colcon-build-and-test-package-with-tcr (package &optional flags)
-  (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
-  (ros-colcon-build-and-test-package package flags t))
-
-(defun ros-get-tcr-command (package)
-  (let ((default-directory (cdr (assoc package (ros-list-package-locations)))))
-    (let ((git-root-dir (vc-root-dir)))
-      (format "&& (cd %s && git commit -am \"chore: TCR\"; echo \"Commit\" && cd - && exit 0) || (cd %s && git reset --hard HEAD; echo \"Revert\" &&  cd - && exit 1) " git-root-dir git-root-dir))))
-
-
-(defun ros-colcon-build-package (package &optional flags test use-tcr)
+(defun ros-colcon-build-package (package &optional flags test)
   "Run a build action to build PACKAGE with FLAGS."
   (interactive (list (ros-completing-read-package) (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (let ((real-flags (seq-filter  (lambda (flag) (not (string= flag "ISOLATED"))) flags))
         (is-isolated (member "ISOLATED" flags))
         (post-cmd (when test (ros-load-colcon-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (list "--cmake-args" (if (eq (ros-current-version) 1) "-DCATKIN_ENABLE_TESTING=ON" "-DBUILD_TESTING=ON") "--packages-select" package) :post-cmd
-                                                                             (concat "colcon test-result --delete-yes && colcon test --packages-select " package " && colcon test-result --verbose" (when use-tcr (ros-get-tcr-command package))))))))
+                                                                             (concat "colcon test-result --delete-yes && colcon test --packages-select " package " && colcon test-result --verbose"))))))
     (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "build" :flags (append (list (concat (if is-isolated "--packages-select " "--packages-up-to ") package)) real-flags)  :post-cmd post-cmd))))
 
 (defun ros-colcon-build-workspace (&optional flags test)
@@ -697,8 +683,7 @@
    ("w" "Build current workspace" ros-colcon-build-workspace)
    ("t" "Build and test current package" ros-colcon-build-and-test-current-package)
    ("T" "Build and test a package" ros-colcon-build-and-test-package)
-   ("r" "Build and test current package and revert changes in repository if test fail" ros-colcon-build-and-test-current-package-with-tcr)
-   ("R" "Build and test a package with TCR and revert changes in repository if test fail" ros-colcon-build-and-test-package-with-tcr)])
+   ])
 
 
 
@@ -712,10 +697,6 @@
 (defun ros-colcon-test-package (package &optional flags)
   (interactive (list (ros-completing-read-package) (transient-args 'ros-colcon-test-transient)))
   (ros-compile-action (ros-dump-colcon-action :workspace ros-current-workspace :verb "test" :flags (append (list (concat "--packages-select " package)) flags) :post-cmd "colcon test-result --verbose")))
-
-(defun ros-colcon-test-package-with-tcr (package &optional flags)
-  (interactive (list (ros-completing-read-package) (transient-args 'ros-colcon-test-transient)))
-  (ros-colcon-test-package package flags t))
 
 (defun ros-colcon-test-workspace (&optional flags)
   (interactive (list (transient-args 'ros-colcon-test-transient)))
