@@ -595,7 +595,7 @@
     (when (executable-find "xmllint") (string-trim (shell-command-to-string "xmllint --xpath \"string(//name)\" package.xml 2> /dev/null")))))
 
 (defun ros-colcon-build-and-test-current-package (&optional flags)
-  (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient)) nil))
+  (interactive (list (ros-merge-cmake-args-commands (transient-args 'ros-colcon-build-transient))))
   (ros-colcon-build-current-package flags t))
 
 (defun ros-colcon-build-current-package (&optional flags test)
